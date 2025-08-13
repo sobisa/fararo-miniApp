@@ -1,0 +1,13 @@
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background-color: #e6e7e7;
+  color: #252627;
+}
+option {
+  color: #252627;
+
+  background-color: #feeec7;
+}
+option:disabled {
+  display: none;
+}
