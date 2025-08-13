@@ -9,12 +9,13 @@ import {
   NativeSelect,
   NumberInput,
   Popover,
+  Table,
   Text,
 } from '@chakra-ui/react';
 import './App.css';
 import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
-import { toaster } from './components/ui/toaster';
+import { Toaster, toaster } from './components/ui/toaster';
 
 type Products = {
   id: number;
@@ -22,6 +23,7 @@ type Products = {
   number: number;
   price: number;
   description: string;
+  options: string;
 };
 type Files = {
   name: string;
@@ -44,6 +46,7 @@ function App() {
   const [price, setPrice] = useState(data[0]?.price ?? 0);
   const [description, setDescription] = useState(data[0]?.description ?? '');
   const [totalPrice, setTotalPrice] = useState(0);
+  const [options, setOptions] = useState('');
   useEffect(() => {
     fetch('/data.xlsx')
       .then((res) => res.arrayBuffer())
@@ -81,21 +84,35 @@ function App() {
     };
 
     const descriptionText = () => {
+      const outputNumber = size == '7035E' ? 5 : size == '7070E2' ? 12 : 20;
       const voltageText =
-        voltage === 'AC' ? ' تغذیه 220 ولت AC' : ' منبع تغذیه 24 ولت DC';
-      const outputText = output === 'T' ? ' خروجی ترانزیستوری' : 'خروجی رله ای';
-      const aiText = ai !== '0' ? `${ai} ورودی آنالوگ -` : '';
-      const aoText = ao !== '0' ? `${ao} خروجی آنالوگ -` : '';
+        voltage === 'AC' ? 'تغذیه 220 ولت AC' : 'منبع تغذیه 24 ولت DC';
+      const outputText =
+        output === 'T'
+          ? `دارای ${outputNumber} عدد خروجی ترانزیستوری`
+          : `دارای ${outputNumber} عدد خروجی رله‌ای`;
+      const aiText = ai !== '0' ? `دارای ${ai} عدد ورودی آنالوگ - ` : '';
+      const aoText = ao !== '0' ? `دارای ${ao} عدد خروجی آنالوگ - ` : '';
       const sdCardText =
         sdCard === 'S' ? 'کارت حافظه 16 گیگ ' : 'فاقد کارت حافظه';
       const lanText =
         size === '7035E'
           ? lan === 'L'
-            ? '-پورت اترنت '
-            : '-بدون پورت اترنت'
+            ? ' - دارای پورت اترنت '
+            : ' - بدون پورت اترنت'
           : '';
+      const showLan = size == '7035E' ? `Lan:${lan} ` : '';
+      setOptions(
+        `
+       Power: ${voltage}
+         Output: ${output}
+         AI: ${ai}
+         AO: ${ao}
+         SD: ${sdCard}
+          ${showLan}`
+      );
       return `${pac.description}
-       آپشن ها: ${voltageText}${outputText}-${aiText}${aoText}${sdCardText}${lanText}`;
+       آپشن ها: ${voltageText} - ${outputText} - ${aiText}${aoText}${sdCardText}${lanText}`;
     };
 
     setPrice(pac.price + priceExtras());
@@ -112,10 +129,11 @@ function App() {
     );
     setTotalPrice(total);
   }, [products]);
-  const handleCopy = () => {
-    const name = `PACs${size}-${voltage}${output}${ai}${ao}${sdCard}`;
-    navigator.clipboard.writeText(name);
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
   };
+
   const handleClick = () => {
     const name = `PACs${size}-${voltage}${output}${ai}${ao}${sdCard}${lan}`;
     let repeat = false;
@@ -136,6 +154,7 @@ function App() {
           number: 1,
           price: price,
           description: description,
+          options: options,
         },
       ]);
     }
@@ -147,18 +166,20 @@ function App() {
   const handleSend = () => {
     let mess = '';
     products.map((p) => {
-      mess += `${p.name} X ${p.number} \n`;
+      mess += `${p.name} ${p.options} 
+      X ${p.number} 
+      `;
     });
-    if (customerCompany.length == 0 || customerName.length == 0) {
+    if (customerCompany.trim().length == 0 || customerName.trim().length == 0) {
+      console.log(customerCompany.length, customerName.length);
       toaster.create({
-        description: 'File saved successfully',
-        type: 'info',
+        description: 'لطفا مشخصات مورد نیاز را وارد فرمایید',
+        type: 'Error',
       });
+      return;
     }
     const company = `از شرکت ${customerCompany}`;
-    const message = `سلام وقت بخیر\n${customerName} هستم ${
-      customerCompany.trim.length > 0 ? company : ''
-    }\n${mess}می‌خوام`;
+    const message = `سلام وقت بخیر\n${customerName.trim()} هستم ${company.trim()}\n${mess}می‌خوام`;
     const encodedMessage = encodeURIComponent(message);
     const url = `https://wa.me/+989196040485?text=${encodedMessage}`;
     if (mess.length > 0) {
@@ -181,6 +202,7 @@ function App() {
       alignItems='center'
       gap={'3'}
     >
+      <Toaster />
       <Flex flexDir={'row'} gap={4}>
         <Heading size={'3xl'}>پارت نامبر HMI : </Heading>
         <Flex align={'center'}>
@@ -188,7 +210,9 @@ function App() {
             fontSize='3xl'
             letterSpacing='widest'
             cursor='pointer'
-            onClick={handleCopy}
+            onClick={() =>
+              handleCopy(`PACs${size}-${voltage}${output}${ai}${ao}${sdCard}`)
+            }
             _hover={{ color: '#fbb130' }}
             title='برای کپی کلیک کنید'
           >{`PACs${size}-${voltage}${output}${ai}${ao}${sdCard}${lan}`}</Heading>
@@ -202,7 +226,13 @@ function App() {
         borderRadius='2xl'
         boxShadow='sm'
       >
-        <Heading>{price.toLocaleString()} ریال</Heading>
+        <Heading
+          _hover={{ color: '#fbb130' }}
+          cursor={'pointer'}
+          onClick={() => handleCopy(price.toLocaleString())}
+        >
+          {price.toLocaleString()} ریال
+        </Heading>
       </Box>
       <Box
         direction={'column'}
@@ -489,13 +519,13 @@ function App() {
       <Box
         direction={'column'}
         gap={'8'}
-        bg='##0f1b24	'
+        // bg='##0f1b24	'
         p={5}
         borderRadius='2xl'
         boxShadow='lg'
       >
         <Heading textAlign='center' fontSize='lg' mb={6}>
-          کارت حافظه
+          پورت اترنت
         </Heading>
         <NativeSelect.Root size='sm' w='15rem' disabled={size != '7035E'}>
           <NativeSelect.Field
@@ -529,7 +559,7 @@ function App() {
         تایید
       </Button>
       <Box
-        bg='##0f1b24	'
+        // bg='##0f1b24	'
         p={12}
         borderRadius='2xl'
         boxShadow='lg'
@@ -541,92 +571,127 @@ function App() {
         alignItems={'center'}
       >
         <Heading size={'xl'}>محصولات انتخاب شده</Heading>
-        {products.length > 0 ? (
-          products.map((value, index) => {
-            return (
-              <Flex direction={'row-reverse'} gap={'5'} alignItems={'center'}>
-                <Popover.Root positioning={{ placement: 'bottom-end' }}>
-                  <Popover.Trigger asChild>
-                    <Button
-                      size='sm'
-                      color={'cyan.600'}
-                      variant={'solid'}
-                      borderRadius={'full'}
-                      background={'cyan.200'}
-                    >
-                      ?
-                    </Button>
-                  </Popover.Trigger>
-                  <Popover.Positioner>
-                    <Popover.Content background={'white'} borderRadius={'xl'}>
-                      <Popover.Arrow>
-                        <Popover.ArrowTip
-                          background={'white!'}
-                          border={'none'}
-                        />
-                      </Popover.Arrow>
-                      <Popover.Body background={'white'} borderRadius={'xl'}>
-                        <Popover.Title fontSize={'xl'}>
-                          مشخصات محصول
-                        </Popover.Title>
-                        <Text my='4'>{value.description}</Text>
-                      </Popover.Body>
-                    </Popover.Content>
-                  </Popover.Positioner>
-                </Popover.Root>
-                <Heading
-                  textAlign='center'
-                  fontSize='lg'
-                  letterSpacing='widest'
-                >
-                  {value.name}
-                </Heading>
-                <NumberInput.Root
-                  width='70px'
-                  defaultValue={value.number.toString()}
-                  min={1}
-                  value={value.number.toString()}
-                  onValueChange={(e) => {
-                    products[index] = {
-                      description: value.description,
-                      id: value.id,
-                      name: value.name,
-                      number: parseInt(e.value),
-                      price: value.price,
-                    };
 
-                    setProducts([...products]);
-                  }}
-                >
-                  <NumberInput.Control>
-                    <NumberInput.IncrementTrigger
-                      _hover={{ background: '#de7525' }}
-                    />
-                    <NumberInput.DecrementTrigger
-                      _hover={{ background: '#de7525' }}
-                    />
-                  </NumberInput.Control>
-                  <NumberInput.Input
-                    border={'none'}
-                    _hover={{ border: 'none' }}
-                    backgroundColor={'#de6407'}
-                    color={'white'}
-                  />
-                </NumberInput.Root>
-                <Heading>
-                  {(value.price * value.number).toLocaleString()} ریال
-                </Heading>
-                <CloseButton
-                  onClick={() => handleClose(value.id)}
-                  size={'2xs'}
-                  variant={'ghost'}
-                  colorPalette={'#f9130bddf'}
-                  background={'#fffffff8f'}
-                  borderRadius={'full'}
-                />
-              </Flex>
-            );
-          })
+        {products.length > 0 ? (
+          <Table.Root background={'white'} direction={'ltr'}>
+            <Table.Body>
+              {products.map((value, index) => {
+                return (
+                  <Table.Row key={index} background={'#F5F6F6'}>
+                    <Table.Cell>
+                      <Flex gap={'5'}>
+                        <Popover.Root positioning={{ placement: 'bottom-end' }}>
+                          <Popover.Trigger asChild>
+                            <Button
+                              size='sm'
+                              color={'cyan.600'}
+                              variant={'solid'}
+                              borderRadius={'full'}
+                              background={'cyan.200'}
+                            >
+                              ?
+                            </Button>
+                          </Popover.Trigger>
+                          <Popover.Positioner>
+                            <Popover.Content
+                              background={'white'}
+                              borderRadius={'xl'}
+                            >
+                              <Popover.Arrow>
+                                <Popover.ArrowTip
+                                  background={'white!'}
+                                  border={'none'}
+                                />
+                              </Popover.Arrow>
+                              <Popover.Body
+                                background={'white'}
+                                borderRadius={'xl'}
+                              >
+                                <Popover.Title fontSize={'xl'}>
+                                  مشخصات محصول
+                                </Popover.Title>
+                                <Text my='4'>{value.description}</Text>
+                              </Popover.Body>
+                            </Popover.Content>
+                          </Popover.Positioner>
+                        </Popover.Root>
+                        <Heading
+                          textAlign='center'
+                          fontSize='lg'
+                          letterSpacing='widest'
+                          _hover={{ color: '#fbb130' }}
+                          cursor={'pointer'}
+                          onClick={() => handleCopy(value.name)}
+                        >
+                          {value.name}
+                        </Heading>
+                      </Flex>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Flex>
+                        <NumberInput.Root
+                          width='70px'
+                          defaultValue={value.number.toString()}
+                          min={1}
+                          value={value.number.toString()}
+                          onValueChange={(e) => {
+                            products[index] = {
+                              description: value.description,
+                              id: value.id,
+                              name: value.name,
+                              number: parseInt(e.value),
+                              price: value.price,
+                              options: value.options,
+                            };
+
+                            setProducts([...products]);
+                          }}
+                        >
+                          <NumberInput.Control>
+                            <NumberInput.IncrementTrigger
+                              _hover={{ background: '#de7525' }}
+                            />
+                            <NumberInput.DecrementTrigger
+                              _hover={{ background: '#de7525' }}
+                            />
+                          </NumberInput.Control>
+                          <NumberInput.Input
+                            border={'none'}
+                            _hover={{ border: 'none' }}
+                            backgroundColor={'#de6407'}
+                            color={'white'}
+                          />
+                        </NumberInput.Root>
+                      </Flex>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Flex gap={'8'}>
+                        <Heading
+                          _hover={{ color: '#fbb130' }}
+                          cursor={'pointer'}
+                          onClick={() =>
+                            handleCopy(
+                              (value.price * value.number).toLocaleString()
+                            )
+                          }
+                        >
+                          {(value.price * value.number).toLocaleString()} ریال
+                        </Heading>
+                        <CloseButton
+                          _hover={{ background: '#f9130bf' }}
+                          onClick={() => handleClose(value.id)}
+                          size={'2xs'}
+                          variant={'ghost'}
+                          background={'#fffffff8f'}
+                          borderRadius={'full'}
+                        />
+                      </Flex>
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              })}
+            </Table.Body>
+          </Table.Root>
         ) : (
           <Heading textAlign='center' fontSize='lg'>
             محصولی اضافه نشده
@@ -642,7 +707,13 @@ function App() {
         w='40rem'
       >
         <Heading size={'xl'}>قیمت کل</Heading>
-        <Heading>{totalPrice.toLocaleString()} ریال</Heading>
+        <Heading
+          _hover={{ color: '#fbb130' }}
+          cursor={'pointer'}
+          onClick={() => handleCopy(totalPrice.toLocaleString())}
+        >
+          {totalPrice.toLocaleString()} ریال
+        </Heading>
       </Box>
       <Box
         direction={'column'}
@@ -708,9 +779,9 @@ function App() {
         >
           ارسال در واتس اپ
         </Button>
-        <Text mt='5' textStyle={'md'}>
+        <Heading mt='5' textStyle={'md'} size={'lg'}>
           قبل از ارسال پیام، در حساب واتس اپ خود لاگین باشید
-        </Text>
+        </Heading>
       </Box>
     </Box>
   );

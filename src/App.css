@@ -1,8 +1,15 @@
+@font-face {
+  font-family: 'Yekan';
+  src: url('./assets/fonts/IRANYekanX-Medium.woff') format('woff'),
+    url('./assets/fonts/IRANYekanX-Medium.woff2') format('woff2');
+  font-weight: normal;
+}
+
 #root {
   max-width: 1360px;
   margin: 0 auto;
-
   text-align: center;
   direction: rtl;
   background-color: #e6e7e7;
+  font-family: 'Yekan';
 }
