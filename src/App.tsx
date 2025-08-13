@@ -154,7 +154,9 @@ const ProductRow = memo(
                 </Popover.Arrow>
                 <Popover.Body background='white' borderRadius='xl'>
                   <Popover.Title fontSize='xl'>مشخصات محصول</Popover.Title>
-                  <Text my='4'>{product.description}</Text>
+                  <Text my='4' textAlign={'right'}>
+                    {product.description}
+                  </Text>
                 </Popover.Body>
               </Popover.Content>
             </Popover.Positioner>
@@ -316,7 +318,6 @@ function App() {
     const outputNumber = sizeInfo?.outputs || 5;
 
     const parts = [
-      currentPac.description,
       'آپشن ها:',
       config.voltage === 'AC' ? 'تغذیه 220 ولت AC' : 'منبع تغذیه 24 ولت DC',
       config.output === 'T'
@@ -327,13 +328,16 @@ function App() {
     if (config.ai !== '0') parts.push(`دارای ${config.ai} عدد ورودی آنالوگ`);
     if (config.ao !== '0') parts.push(`دارای ${config.ao} عدد خروجی آنالوگ`);
 
-    parts.push(config.sdCard === 'S' ? 'کارت حافظه 16 گیگ' : 'فاقد کارت حافظه');
+    parts.push(
+      config.sdCard === 'S' ? 'دارای کارت حافظه 16 گیگ' : 'فاقد کارت حافظه'
+    );
 
     if (config.size === '7035E') {
       parts.push(config.lan === 'L' ? 'دارای پورت اترنت' : 'بدون پورت اترنت');
     }
 
-    return parts.join(' - ');
+    return ` ${currentPac.description} 
+    ${parts.join(' - ')}`;
   }, [currentPac, config]);
 
   const currentOptions = useMemo(() => {
@@ -475,7 +479,7 @@ function App() {
   const handleSendMessage = useCallback(() => {
     if (!customerCompany.trim() || !customerName.trim()) {
       toaster.create({
-        description: 'لطفا مشخصات مورد نیاز را وارد فرمایید',
+        description: 'لطفا مشخصات مورد نیاز را وارد نمایید',
         type: 'Error',
       });
       return;
@@ -485,10 +489,13 @@ function App() {
 
     // Use more efficient string building
     const productsText = products
-      .map((p) => `${p.name} ${p.options} \n      X ${p.number} \n      `)
+      .map(
+        (p) =>
+          `${p.name} ${p.options} \n      X ${p.number} \n     --------------------- \n `
+      )
       .join('');
 
-    const message = `سلام وقت بخیر\n${customerName.trim()} هستم از شرکت ${customerCompany.trim()}\n${productsText}می‌خوام`;
+    const message = `سلام وقت بخیر\n${customerName.trim()} هستم از شرکت ${customerCompany.trim()}\n${productsText}`;
     const encodedMessage = encodeURIComponent(message);
     const url = `https://wa.me/+989196040485?text=${encodedMessage}`;
 
