@@ -43,239 +43,264 @@ interface ConfigState {
   lan: string;
 }
 
+interface SizeInfo {
+  display: string;
+  outputs: number;
+  maxAnalog: number;
+  relay: number[];
+}
+
+interface ConfigOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
 // Constants
-const SIZES = {
-  '7035E': { display: '3.5 اینچ', outputs: 5, maxAnalog: 2 },
-  '7070E2': { display: '7 اینچ', outputs: 12, maxAnalog: 3 },
-  '7101E': { display: '10 اینچ', outputs: 20, maxAnalog: 4 },
+const SIZES: Record<string, SizeInfo> = {
+  '7035E': { display: '3.5 اینچ', outputs: 5, maxAnalog: 2, relay: [5] },
+  '7070E2': { display: '7 اینچ', outputs: 12, maxAnalog: 3, relay: [12, 6] },
+  '7101E': {
+    display: '10 اینچ',
+    outputs: 20,
+    maxAnalog: 4,
+    relay: [20, 15, 10, 5],
+  },
 } as const;
 
-const VOLTAGE_OPTIONS = [
+const VOLTAGE_OPTIONS: ConfigOption[] = [
   { value: 'DC', label: '24V DC تغذیه' },
   { value: 'AC', label: '220V AC تغذیه' },
 ];
 
-const OUTPUT_OPTIONS = [
+const OUTPUT_OPTIONS: ConfigOption[] = [
   { value: 'T', label: 'خروجی ترانزیستوری' },
   { value: 'R', label: 'خروجی رله ای' },
 ];
 
-const SD_CARD_OPTIONS = [
+const SD_CARD_OPTIONS: ConfigOption[] = [
   { value: 'S', label: 'دارد' },
   { value: 'N', label: 'ندارد' },
 ];
 
-const LAN_OPTIONS = [
+const LAN_OPTIONS: ConfigOption[] = [
   { value: 'L', label: 'دارد' },
   { value: 'N', label: 'ندارد' },
 ];
 
-// Memoized components for better performance
-const ConfigSelector = memo(
-  ({
-    title,
-    value,
-    options,
-    onChange,
-    disabled = false,
-  }: {
-    title: string;
-    value: string;
-    options: { value: string; label: string; disabled?: boolean }[];
-    onChange: (value: string) => void;
-    disabled?: boolean;
-  }) => (
-    <Box
-      direction='column'
-      gap='8'
-      bg='##0f1b24'
-      p={5}
-      borderRadius='2xl'
-      boxShadow='lg'
-    >
-      <Heading textAlign='center' fontSize='lg' mb={6}>
-        {title}
-      </Heading>
-      <NativeSelect.Root size='sm' w='15rem' disabled={disabled}>
-        <NativeSelect.Field
-          borderRadius='lg'
-          bg='#fbb130'
-          _hover={{ borderColor: '#2e4150' }}
-          _focus={{ borderColor: '#2e4150' }}
-          borderColor='#782C0F'
-          value={value}
-          onChange={(e) => onChange(e.currentTarget.value)}
+const INITIAL_CONFIG: ConfigState = {
+  size: '7035E',
+  voltage: 'AC',
+  output: 'T',
+  ai: '0',
+  ao: '0',
+  sdCard: 'N',
+  lan: 'L',
+};
+
+const RELAY_CONFIG = [
+  { size: '7035E', options: ['5'] },
+  { size: '7070E2', options: ['12', '6'] },
+  { size: '7101E', options: ['20', '15', '10', '5'] },
+];
+
+// Utility functions
+const copyToClipboard = (text: string): void => {
+  if ('requestIdleCallback' in window) {
+    requestIdleCallback(() => navigator.clipboard.writeText(text));
+  } else {
+    setTimeout(() => navigator.clipboard.writeText(text), 0);
+  }
+};
+
+const loadExcelData = async (): Promise<FileData[]> => {
+  const response = await fetch('/data.xlsx');
+  const arrayBuffer = await response.arrayBuffer();
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  const sheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[sheetName];
+  return XLSX.utils.sheet_to_json(worksheet);
+};
+
+const generateRange = (max: number): ConfigOption[] =>
+  Array.from({ length: max + 1 }, (_, i) => ({
+    value: i.toString(),
+    label: i.toString(),
+  }));
+
+// Memoized Components
+const ConfigSelector = memo<{
+  title: string;
+  value: string;
+  options: ConfigOption[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}>(({ title, value, options, onChange, disabled = false }) => (
+  <Box
+    direction='column'
+    gap='8'
+    bg='##0f1b24'
+    p={5}
+    borderRadius='2xl'
+    boxShadow='lg'
+  >
+    <Heading textAlign='center' fontSize='lg' mb={6}>
+      {title}
+    </Heading>
+    <NativeSelect.Root size='sm' w='15rem' disabled={disabled}>
+      <NativeSelect.Field
+        borderRadius='lg'
+        bg='#fbb130'
+        _hover={{ borderColor: '#2e4150' }}
+        _focus={{ borderColor: '#2e4150' }}
+        borderColor='#782C0F'
+        value={value}
+        onChange={(e) => onChange(e.currentTarget.value)}
+      >
+        {options.map(({ value: optValue, label, disabled: optDisabled }) => (
+          <option key={optValue} value={optValue} disabled={optDisabled}>
+            {label}
+          </option>
+        ))}
+      </NativeSelect.Field>
+      <NativeSelect.Indicator />
+    </NativeSelect.Root>
+  </Box>
+));
+
+ConfigSelector.displayName = 'ConfigSelector';
+
+const ProductRow = memo<{
+  product: Product;
+  index: number;
+  onCopy: (text: string) => void;
+  onUpdateQuantity: (index: number, quantity: number) => void;
+  onRemove: (id: number) => void;
+}>(({ product, index, onCopy, onUpdateQuantity, onRemove }) => (
+  <Table.Row background='#F5F6F6'>
+    <Table.Cell>
+      <Flex gap='5'>
+        <Popover.Root positioning={{ placement: 'bottom-end' }}>
+          <Popover.Trigger asChild>
+            <Button
+              size='sm'
+              color='cyan.600'
+              variant='solid'
+              borderRadius='full'
+              background='cyan.200'
+            >
+              ?
+            </Button>
+          </Popover.Trigger>
+          <Popover.Positioner>
+            <Popover.Content background='white' borderRadius='xl'>
+              <Popover.Arrow>
+                <Popover.ArrowTip background='white!' border='none' />
+              </Popover.Arrow>
+              <Popover.Body background='white' borderRadius='xl'>
+                <Popover.Title fontSize='xl'>مشخصات محصول</Popover.Title>
+                <Text my='4' textAlign='right'>
+                  {product.description}
+                </Text>
+              </Popover.Body>
+            </Popover.Content>
+          </Popover.Positioner>
+        </Popover.Root>
+        <Heading
+          textAlign='center'
+          fontSize='lg'
+          letterSpacing='widest'
+          _hover={{ color: '#fbb130' }}
+          cursor='pointer'
+          onClick={() => onCopy(product.name)}
         >
-          {options.map(({ value: optValue, label, disabled: optDisabled }) => (
-            <option key={optValue} value={optValue} disabled={optDisabled}>
-              {label}
-            </option>
-          ))}
-        </NativeSelect.Field>
-        <NativeSelect.Indicator />
-      </NativeSelect.Root>
-    </Box>
-  )
-);
-
-const ProductRow = memo(
-  ({
-    product,
-    index,
-    onCopy,
-    onUpdateQuantity,
-    onRemove,
-  }: {
-    product: Product;
-    index: number;
-    onCopy: (text: string) => void;
-    onUpdateQuantity: (index: number, quantity: number) => void;
-    onRemove: (id: number) => void;
-  }) => (
-    <Table.Row background='#F5F6F6'>
-      <Table.Cell>
-        <Flex gap='5'>
-          <Popover.Root positioning={{ placement: 'bottom-end' }}>
-            <Popover.Trigger asChild>
-              <Button
-                size='sm'
-                color='cyan.600'
-                variant='solid'
-                borderRadius='full'
-                background='cyan.200'
-              >
-                ?
-              </Button>
-            </Popover.Trigger>
-            <Popover.Positioner>
-              <Popover.Content background='white' borderRadius='xl'>
-                <Popover.Arrow>
-                  <Popover.ArrowTip background='white!' border='none' />
-                </Popover.Arrow>
-                <Popover.Body background='white' borderRadius='xl'>
-                  <Popover.Title fontSize='xl'>مشخصات محصول</Popover.Title>
-                  <Text my='4' textAlign={'right'}>
-                    {product.description}
-                  </Text>
-                </Popover.Body>
-              </Popover.Content>
-            </Popover.Positioner>
-          </Popover.Root>
-          <Heading
-            textAlign='center'
-            fontSize='lg'
-            letterSpacing='widest'
-            _hover={{ color: '#fbb130' }}
-            cursor='pointer'
-            onClick={() => onCopy(product.name)}
-          >
-            {product.name}
-          </Heading>
-        </Flex>
-      </Table.Cell>
-      <Table.Cell>
-        <NumberInput.Root
-          width='70px'
-          defaultValue={product.number.toString()}
-          min={1}
-          value={product.number.toString()}
-          onValueChange={(e) => onUpdateQuantity(index, parseInt(e.value) || 1)}
+          {product.name}
+        </Heading>
+      </Flex>
+    </Table.Cell>
+    <Table.Cell>
+      <NumberInput.Root
+        width='70px'
+        defaultValue={product.number.toString()}
+        min={1}
+        value={product.number.toString()}
+        onValueChange={(e) => onUpdateQuantity(index, parseInt(e.value) || 1)}
+      >
+        <NumberInput.Control>
+          <NumberInput.IncrementTrigger _hover={{ background: '#de7525' }} />
+          <NumberInput.DecrementTrigger _hover={{ background: '#de7525' }} />
+        </NumberInput.Control>
+        <NumberInput.Input
+          border='none'
+          _hover={{ border: 'none' }}
+          backgroundColor='#de6407'
+          color='white'
+        />
+      </NumberInput.Root>
+    </Table.Cell>
+    <Table.Cell>
+      <Flex gap='8'>
+        <Heading
+          _hover={{ color: '#fbb130' }}
+          cursor='pointer'
+          onClick={() =>
+            onCopy((product.price * product.number).toLocaleString())
+          }
         >
-          <NumberInput.Control>
-            <NumberInput.IncrementTrigger _hover={{ background: '#de7525' }} />
-            <NumberInput.DecrementTrigger _hover={{ background: '#de7525' }} />
-          </NumberInput.Control>
-          <NumberInput.Input
-            border='none'
-            _hover={{ border: 'none' }}
-            backgroundColor='#de6407'
-            color='white'
-          />
-        </NumberInput.Root>
-      </Table.Cell>
-      <Table.Cell>
-        <Flex gap='8'>
-          <Heading
-            _hover={{ color: '#fbb130' }}
-            cursor='pointer'
-            onClick={() =>
-              onCopy((product.price * product.number).toLocaleString())
-            }
-          >
-            {(product.price * product.number).toLocaleString()} ریال
-          </Heading>
-          <CloseButton
-            _hover={{ background: '#f9130bf' }}
-            onClick={() => onRemove(product.id)}
-            size='2xs'
-            variant='ghost'
-            background='#fffffff8f'
-            borderRadius='full'
-          />
-        </Flex>
-      </Table.Cell>
-    </Table.Row>
-  )
-);
+          {(product.price * product.number).toLocaleString()} ریال
+        </Heading>
+        <CloseButton
+          _hover={{ background: '#f9130bf' }}
+          onClick={() => onRemove(product.id)}
+          size='2xs'
+          variant='ghost'
+          background='#fffffff8f'
+          borderRadius='full'
+        />
+      </Flex>
+    </Table.Cell>
+  </Table.Row>
+));
 
-function App() {
-  // State
-  const [config, setConfig] = useState<ConfigState>({
-    size: '7035E',
-    voltage: 'AC',
-    output: 'T',
-    ai: '0',
-    ao: '0',
-    sdCard: 'N',
-    lan: 'L',
-  });
+ProductRow.displayName = 'ProductRow';
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [id, setId] = useState(0);
-  const [customerName, setCustomerName] = useState('');
-  const [customerCompany, setCustomerCompany] = useState('');
+// Custom Hooks
+const useExcelData = () => {
   const [data, setData] = useState<FileData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load Excel data with performance optimization
   useEffect(() => {
     let isMounted = true;
 
-    const loadData = async () => {
-      try {
-        const response = await fetch('/data.xlsx');
-        const arrayBuffer = await response.arrayBuffer();
-
-        // Use setTimeout to prevent blocking the main thread
-        setTimeout(() => {
-          if (!isMounted) return;
-
-          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData: FileData[] = XLSX.utils.sheet_to_json(worksheet);
-
+    loadExcelData()
+      .then((jsonData) => {
+        if (isMounted) {
           setData(jsonData);
           setIsLoading(false);
-        }, 0);
-      } catch (error) {
+        }
+      })
+      .catch((error) => {
         console.error('Error loading data:', error);
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
+        if (isMounted) setIsLoading(false);
+      });
 
     return () => {
       isMounted = false;
     };
   }, []);
 
-  // Memoized calculations with dependency optimization
-  const currentPac = useMemo(() => {
-    if (!data.length) return null;
-    return data.find((item) => item.name === `PACs ${config.size}`) || null;
-  }, [data, config.size]);
+  return { data, isLoading };
+};
+
+const useProductCalculations = (
+  config: ConfigState,
+  data: FileData[],
+  relayNum: string
+) => {
+  const currentPac = useMemo(
+    () => data.find((item) => item.name === `PACs ${config.size}`) || null,
+    [data, config.size]
+  );
 
   const priceExtras = useMemo(() => {
     if (!data.length) return 0;
@@ -283,33 +308,28 @@ function App() {
     let extra = 0;
     const relayPrice = data[7]?.price || 0;
 
-    // Relay output extra cost
     if (config.output === 'R') {
-      const outputs = SIZES[config.size as keyof typeof SIZES]?.outputs || 5;
-      extra += relayPrice * outputs;
+      extra += relayPrice * parseInt(relayNum);
     }
 
-    // Analog inputs/outputs - use bitwise operations for faster calculation
-    const aiCost = (data[5]?.price || 0) * parseInt(config.ai);
-    const aoCost = (data[6]?.price || 0) * parseInt(config.ao);
-    extra += aiCost + aoCost;
+    extra += (data[5]?.price || 0) * parseInt(config.ai);
+    extra += (data[6]?.price || 0) * parseInt(config.ao);
 
-    // SD Card
     if (config.sdCard === 'S') {
       extra += data[3]?.price || 0;
     }
 
-    // LAN (only for 7035E)
     if (config.size === '7035E' && config.lan === 'L') {
       extra += data[4]?.price || 0;
     }
 
     return extra;
-  }, [config, data]);
+  }, [config, data, relayNum]);
 
-  const currentPrice = useMemo(() => {
-    return (currentPac?.price || 0) + priceExtras;
-  }, [currentPac?.price, priceExtras]);
+  const currentPrice = useMemo(
+    () => (currentPac?.price || 0) + priceExtras,
+    [currentPac?.price, priceExtras]
+  );
 
   const currentDescription = useMemo(() => {
     if (!currentPac) return '';
@@ -336,8 +356,7 @@ function App() {
       parts.push(config.lan === 'L' ? 'دارای پورت اترنت' : 'بدون پورت اترنت');
     }
 
-    return ` ${currentPac.description} 
-    ${parts.join(' - ')}`;
+    return ` ${currentPac.description} \n    ${parts.join(' - ')}`;
   }, [currentPac, config]);
 
   const currentOptions = useMemo(() => {
@@ -356,56 +375,95 @@ function App() {
     return parts.join('\n         ');
   }, [config]);
 
-  const currentPartNumber = useMemo(() => {
-    return `PACs${config.size}-${config.voltage}${config.output}${config.ai}${config.ao}${config.sdCard}${config.lan}`;
-  }, [config]);
+  const currentPartNumber = useMemo(
+    () =>
+      `PACs${config.size}-${config.voltage}${config.output}${config.ai}${config.ao}${config.sdCard}${config.lan}`,
+    [config]
+  );
 
-  const totalPrice = useMemo(() => {
-    return products.reduce((sum, item) => sum + item.price * item.number, 0);
-  }, [products]);
+  return {
+    currentPac,
+    priceExtras,
+    currentPrice,
+    currentDescription,
+    currentOptions,
+    currentPartNumber,
+  };
+};
 
-  // Pre-compute analog options to avoid recalculation
+const useConfigOptions = (config: ConfigState) => {
   const analogOptions = useMemo(() => {
     const sizeInfo = SIZES[config.size as keyof typeof SIZES];
     const maxTotal = sizeInfo?.maxAnalog || 2;
     const aiNum = parseInt(config.ai);
     const aoNum = parseInt(config.ao);
 
-    const aiOptions = [];
-    const aoOptions = [];
+    const aiOptions = generateRange(4).map((option) => ({
+      ...option,
+      disabled:
+        parseInt(option.value) + aoNum > maxTotal ||
+        (config.size === '7035E' && parseInt(option.value) > 2),
+    }));
 
-    for (let i = 0; i <= 4; i++) {
-      const aiDisabled =
-        i + aoNum > maxTotal || (config.size === '7035E' && i > 2);
-      const aoDisabled =
-        aiNum + i > maxTotal || (config.size === '7035E' && i > 2);
-
-      aiOptions.push({
-        value: i.toString(),
-        label: i.toString(),
-        disabled: aiDisabled,
-      });
-      aoOptions.push({
-        value: i.toString(),
-        label: i.toString(),
-        disabled: aoDisabled,
-      });
-    }
+    const aoOptions = generateRange(4).map((option) => ({
+      ...option,
+      disabled:
+        aiNum + parseInt(option.value) > maxTotal ||
+        (config.size === '7035E' && parseInt(option.value) > 2),
+    }));
 
     return { aiOptions, aoOptions };
   }, [config.size, config.ai, config.ao]);
 
-  // Optimized event handlers with debouncing where needed
+  const relayOptions = useMemo(() => {
+    const selectedOptions = RELAY_CONFIG.find(
+      (option) => option.size === config.size
+    );
+    return (
+      selectedOptions?.options.map((selected) => ({
+        value: selected,
+        label: selected,
+      })) || []
+    );
+  }, [config.size]);
+
+  return { analogOptions, relayOptions };
+};
+
+// Main Component
+function App() {
+  const [config, setConfig] = useState<ConfigState>(INITIAL_CONFIG);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [id, setId] = useState(0);
+  const [customerName, setCustomerName] = useState('');
+  const [customerCompany, setCustomerCompany] = useState('');
+  const [relayNum, setRelayNum] = useState('5');
+
+  const { data, isLoading } = useExcelData();
+  const {
+    currentPrice,
+    currentDescription,
+    currentOptions,
+    currentPartNumber,
+  } = useProductCalculations(config, data, relayNum);
+  const { analogOptions, relayOptions } = useConfigOptions(config);
+
+  const totalPrice = useMemo(
+    () => products.reduce((sum, item) => sum + item.price * item.number, 0),
+    [products]
+  );
+
   const handleConfigChange = useCallback(
     (field: keyof ConfigState, value: string) => {
       setConfig((prev) => {
         const newConfig = { ...prev, [field]: value };
 
-        // Reset AI/AO when size changes
         if (field === 'size') {
           newConfig.ai = '0';
           newConfig.ao = '0';
-          // Auto-set LAN for non-7035E sizes
+          setRelayNum(
+            value === '7035E' ? '5' : value === '7070E2' ? '12' : '20'
+          );
           if (value !== '7035E') {
             newConfig.lan = 'L';
           }
@@ -417,18 +475,7 @@ function App() {
     []
   );
 
-  const handleCopy = useCallback((text: string) => {
-    // Use requestIdleCallback for non-critical operations
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(() => {
-        navigator.clipboard.writeText(text);
-      });
-    } else {
-      setTimeout(() => {
-        navigator.clipboard.writeText(text);
-      }, 0);
-    }
-  }, []);
+  const handleCopy = useCallback(copyToClipboard, []);
 
   const handleAddProduct = useCallback(() => {
     const name = currentPartNumber;
@@ -447,7 +494,7 @@ function App() {
 
       const newProduct: Product = {
         name,
-        id: id,
+        id,
         number: 1,
         price: currentPrice,
         description: currentDescription,
@@ -477,7 +524,10 @@ function App() {
   );
 
   const handleSendMessage = useCallback(() => {
-    if (!customerCompany.trim() || !customerName.trim()) {
+    const trimmedName = customerName.trim();
+    const trimmedCompany = customerCompany.trim();
+
+    if (!trimmedCompany || !trimmedName) {
       toaster.create({
         description: 'لطفا مشخصات مورد نیاز را وارد نمایید',
         type: 'Error',
@@ -487,7 +537,6 @@ function App() {
 
     if (products.length === 0) return;
 
-    // Use more efficient string building
     const productsText = products
       .map(
         (p) =>
@@ -495,7 +544,7 @@ function App() {
       )
       .join('');
 
-    const message = `سلام وقت بخیر\n${customerName.trim()} هستم از شرکت ${customerCompany.trim()}\n${productsText}`;
+    const message = `سلام وقت بخیر\n${trimmedName} هستم از شرکت ${trimmedCompany}\n${productsText}`;
     const encodedMessage = encodeURIComponent(message);
     const url = `https://wa.me/+989196040485?text=${encodedMessage}`;
 
@@ -567,7 +616,7 @@ function App() {
       </Box>
 
       {/* Configuration Grid */}
-      <Grid templateColumns={{ base: '2fr', md: 'repeat(3, 1fr)' }} gap={3}>
+      <Grid templateColumns={{ base: '2fr', md: 'repeat(4, 1fr)' }} gap={3}>
         <ConfigSelector
           title='اندازه نمایشگر'
           value={config.size}
@@ -593,6 +642,16 @@ function App() {
         />
 
         <ConfigSelector
+          title='تعداد خروجی رله'
+          value={config.output === 'T' ? '0' : relayNum}
+          options={
+            config.output === 'T' ? [{ value: '0', label: '0' }] : relayOptions
+          }
+          onChange={setRelayNum}
+          disabled={config.output === 'T'}
+        />
+
+        <ConfigSelector
           title='تعداد ورودی آنالوگ'
           value={config.ai}
           options={analogOptions.aiOptions}
@@ -612,18 +671,16 @@ function App() {
           options={SD_CARD_OPTIONS}
           onChange={(value) => handleConfigChange('sdCard', value)}
         />
+
+        <ConfigSelector
+          title='پورت اترنت'
+          value={config.lan}
+          options={LAN_OPTIONS}
+          onChange={(value) => handleConfigChange('lan', value)}
+          disabled={config.size !== '7035E'}
+        />
       </Grid>
 
-      {/* LAN Port Selection */}
-      <ConfigSelector
-        title='پورت اترنت'
-        value={config.lan}
-        options={LAN_OPTIONS}
-        onChange={(value) => handleConfigChange('lan', value)}
-        disabled={config.size !== '7035E'}
-      />
-
-      {/* Add Product Button */}
       <Button
         bg='#de6407'
         color='white'
