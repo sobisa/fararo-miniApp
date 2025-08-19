@@ -1,4 +1,5 @@
 import {
+  Blockquote,
   Box,
   Button,
   CloseButton,
@@ -6,10 +7,10 @@ import {
   Grid,
   Heading,
   Input,
+  Mark,
   NativeSelect,
   NumberInput,
   Popover,
-  Table,
   Text,
 } from '@chakra-ui/react';
 import './App.css';
@@ -98,28 +99,23 @@ const INITIAL_CONFIG: ConfigState = {
   lan: 'L',
 };
 
-const RELAY_CONFIG = [
-  { size: '7035E', options: ['5'] },
-  { size: '7070E2', options: ['12', '6'] },
-  { size: '7101E', options: ['20', '15', '10', '5'] },
-];
-
 // Utility functions
 const copyToClipboard = (text: string): void => {
-  if ('requestIdleCallback' in window) {
-    requestIdleCallback(() => navigator.clipboard.writeText(text));
-  } else {
-    setTimeout(() => navigator.clipboard.writeText(text), 0);
-  }
+  navigator.clipboard.writeText(text);
 };
 
 const loadExcelData = async (): Promise<FileData[]> => {
-  const response = await fetch('/data.xlsx');
-  const arrayBuffer = await response.arrayBuffer();
-  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-  const sheetName = workbook.SheetNames[0];
-  const worksheet = workbook.Sheets[sheetName];
-  return XLSX.utils.sheet_to_json(worksheet);
+  try {
+    const response = await fetch('/data.xlsx');
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    return XLSX.utils.sheet_to_json(worksheet);
+  } catch (error) {
+    console.error('Error loading Excel data:', error);
+    return [];
+  }
 };
 
 const generateRange = (max: number): ConfigOption[] =>
@@ -127,6 +123,21 @@ const generateRange = (max: number): ConfigOption[] =>
     value: i.toString(),
     label: i.toString(),
   }));
+
+const getRelayOptions = (size: string): ConfigOption[] => {
+  const sizeInfo = SIZES[size];
+  return (
+    sizeInfo?.relay.map((value) => ({
+      value: value.toString(),
+      label: value.toString(),
+    })) || []
+  );
+};
+
+const getDefaultRelayNum = (size: string): string => {
+  const sizeInfo = SIZES[size];
+  return sizeInfo?.relay[0]?.toString() || '5';
+};
 
 // Memoized Components
 const ConfigSelector = memo<{
@@ -137,38 +148,48 @@ const ConfigSelector = memo<{
   disabled?: boolean;
 }>(({ title, value, options, onChange, disabled = false }) => (
   <Box
-    direction='column'
-    gap='8'
-    bg='##0f1b24'
-    p={5}
+    bgGradient={'to-br'}
+    gradientFrom={'gray.800'}
+    gradientTo={'gray.900'}
     borderRadius='2xl'
-    boxShadow='lg'
   >
-    <Heading textAlign='center' fontSize='lg' mb={6}>
-      {title}
-    </Heading>
-    <NativeSelect.Root size='sm' w='15rem' disabled={disabled}>
-      <NativeSelect.Field
-        borderRadius='lg'
-        bg='#fbb130'
-        _hover={{ borderColor: '#2e4150' }}
-        _focus={{ borderColor: '#2e4150' }}
-        borderColor='#782C0F'
-        value={value}
-        onChange={(e) => onChange(e.currentTarget.value)}
-      >
-        {options.map(({ value: optValue, label, disabled: optDisabled }) => (
-          <option key={optValue} value={optValue} disabled={optDisabled}>
-            {label}
-          </option>
-        ))}
-      </NativeSelect.Field>
-      <NativeSelect.Indicator />
-    </NativeSelect.Root>
+    <Box
+      direction='column'
+      gap='8'
+      bgGradient={'to-br'}
+      gradientFrom={'blue.500/10'}
+      gradientTo={'purple.500/10'}
+      p={5}
+      borderRadius='2xl'
+      boxShadow='lg'
+    >
+      <Heading textAlign='center' fontSize='lg' mb={6}>
+        {title}
+      </Heading>
+      <NativeSelect.Root size='sm' w='15rem' disabled={disabled}>
+        <NativeSelect.Field
+          borderRadius='lg'
+          bgGradient={'to-r'}
+          color={'white'}
+          gradientFrom={'orange.400'}
+          gradientTo={'orange.500'}
+          _hover={{ borderColor: '#2e4150' }}
+          _focus={{ borderColor: '#2e4150' }}
+          borderColor='#782C0F'
+          value={value}
+          onChange={(e) => onChange(e.currentTarget.value)}
+        >
+          {options.map(({ value: optValue, label, disabled: optDisabled }) => (
+            <option key={optValue} value={optValue} disabled={optDisabled}>
+              {label}
+            </option>
+          ))}
+        </NativeSelect.Field>
+        <NativeSelect.Indicator />
+      </NativeSelect.Root>
+    </Box>
   </Box>
 ));
-
-ConfigSelector.displayName = 'ConfigSelector';
 
 const ProductRow = memo<{
   product: Product;
@@ -177,92 +198,114 @@ const ProductRow = memo<{
   onUpdateQuantity: (index: number, quantity: number) => void;
   onRemove: (id: number) => void;
 }>(({ product, index, onCopy, onUpdateQuantity, onRemove }) => (
-  <Table.Row background='#F5F6F6'>
-    <Table.Cell>
-      <Flex gap='5'>
-        <Popover.Root positioning={{ placement: 'bottom-end' }}>
-          <Popover.Trigger asChild>
-            <Button
-              size='sm'
-              color='cyan.600'
-              variant='solid'
-              borderRadius='full'
-              background='cyan.200'
-            >
-              ?
-            </Button>
-          </Popover.Trigger>
-          <Popover.Positioner>
-            <Popover.Content background='white' borderRadius='xl'>
-              <Popover.Arrow>
-                <Popover.ArrowTip background='white!' border='none' />
-              </Popover.Arrow>
-              <Popover.Body background='white' borderRadius='xl'>
-                <Popover.Title fontSize='xl'>مشخصات محصول</Popover.Title>
-                <Text my='4' textAlign='right'>
-                  {product.description}
-                </Text>
-              </Popover.Body>
-            </Popover.Content>
-          </Popover.Positioner>
-        </Popover.Root>
-        <Heading
-          textAlign='center'
-          fontSize='lg'
-          letterSpacing='widest'
-          _hover={{ color: '#fbb130' }}
-          cursor='pointer'
-          onClick={() => onCopy(product.name)}
+  <Flex
+    padding={'5'}
+    background='white'
+    borderRadius={'3xl'}
+    shadow={'2xl'}
+    border={'1px solid'}
+    borderColor={'gray.200'}
+    _hover={{ shadow: 'xl' }}
+    gap={'4'}
+    color={'black'}
+    direction={'row-reverse'}
+    alignItems={'center'}
+  >
+    <Popover.Root positioning={{ placement: 'bottom-end' }}>
+      <Popover.Trigger asChild>
+        <Button
+          size='sm'
+          color='cyan.600'
+          variant='solid'
+          borderRadius='full'
+          background='cyan.200'
         >
-          {product.name}
-        </Heading>
-      </Flex>
-    </Table.Cell>
-    <Table.Cell>
-      <NumberInput.Root
-        width='70px'
-        defaultValue={product.number.toString()}
-        min={1}
-        value={product.number.toString()}
-        onValueChange={(e) => onUpdateQuantity(index, parseInt(e.value) || 1)}
-      >
-        <NumberInput.Control>
-          <NumberInput.IncrementTrigger _hover={{ background: '#de7525' }} />
-          <NumberInput.DecrementTrigger _hover={{ background: '#de7525' }} />
-        </NumberInput.Control>
+          ?
+        </Button>
+      </Popover.Trigger>
+      <Popover.Positioner>
+        <Popover.Content background='white' borderRadius='xl'>
+          <Popover.Arrow>
+            <Popover.ArrowTip background='white!' border='none' />
+          </Popover.Arrow>
+          <Popover.Body background='white' borderRadius='xl'>
+            <Popover.Title fontSize='xl'>مشخصات محصول</Popover.Title>
+            <Text my='4' textAlign='right'>
+              {product.description}
+            </Text>
+          </Popover.Body>
+        </Popover.Content>
+      </Popover.Positioner>
+    </Popover.Root>
+    <Heading
+      textAlign='center'
+      fontSize='lg'
+      letterSpacing='widest'
+      _hover={{ color: '#fbb130' }}
+      cursor='pointer'
+      onClick={() => onCopy(product.name)}
+    >
+      {product.name}
+    </Heading>
+
+    <NumberInput.Root
+      defaultValue={product.number.toString()}
+      min={1}
+      max={99}
+      value={product.number.toString()}
+      onValueChange={(e) => onUpdateQuantity(index, parseInt(e.value) || 1)}
+    >
+      <Flex gap={'1'} alignItems={'center'}>
+        <Button
+          onClick={() => onUpdateQuantity(index, product.number - 1)}
+          backgroundGradient={'to-r'}
+          gradientFrom={'red.500'}
+          gradientTo={'red.600'}
+          fontSize={'2xl'}
+          color={'white'}
+        >
+          -
+        </Button>
         <NumberInput.Input
+          maxWidth={'30px'}
+          min={1}
+          max={99}
           border='none'
           _hover={{ border: 'none' }}
           backgroundColor='#de6407'
           color='white'
+          textAlign={'center'}
         />
-      </NumberInput.Root>
-    </Table.Cell>
-    <Table.Cell>
-      <Flex gap='8'>
-        <Heading
-          _hover={{ color: '#fbb130' }}
-          cursor='pointer'
-          onClick={() =>
-            onCopy((product.price * product.number).toLocaleString())
-          }
+        <Button
+          onClick={() => onUpdateQuantity(index, product.number + 1)}
+          backgroundGradient={'to-r'}
+          gradientFrom={'green.500'}
+          gradientTo={'green.600'}
+          fontSize={'lg'}
+          color={'white'}
         >
-          {(product.price * product.number).toLocaleString()} ریال
-        </Heading>
-        <CloseButton
-          _hover={{ background: '#f9130bf' }}
-          onClick={() => onRemove(product.id)}
-          size='2xs'
-          variant='ghost'
-          background='#fffffff8f'
-          borderRadius='full'
-        />
+          +
+        </Button>
       </Flex>
-    </Table.Cell>
-  </Table.Row>
-));
+    </NumberInput.Root>
 
-ProductRow.displayName = 'ProductRow';
+    <Heading
+      _hover={{ color: '#fbb130' }}
+      cursor='pointer'
+      onClick={() => onCopy((product.price * product.number).toLocaleString())}
+    >
+      {(product.price * product.number).toLocaleString()} ریال
+    </Heading>
+    <CloseButton
+      _hover={{ background: '#f9130bf' }}
+      onClick={() => onRemove(product.id)}
+      size='2xs'
+      background='red.300'
+      color={'red.500'}
+      borderRadius='full'
+    />
+  </Flex>
+));
 
 // Custom Hooks
 const useExcelData = () => {
@@ -270,22 +313,20 @@ const useExcelData = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
-    loadExcelData()
-      .then((jsonData) => {
-        if (isMounted) {
-          setData(jsonData);
-          setIsLoading(false);
-        }
-      })
-      .catch((error) => {
-        console.error('Error loading data:', error);
-        if (isMounted) setIsLoading(false);
-      });
+    const loadData = async () => {
+      const jsonData = await loadExcelData();
+      if (mounted) {
+        setData(jsonData);
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
   }, []);
 
@@ -306,21 +347,24 @@ const useProductCalculations = (
     if (!data.length) return 0;
 
     let extra = 0;
-    const relayPrice = data[7]?.price || 0;
 
-    if (config.output === 'R') {
-      extra += relayPrice * parseInt(relayNum);
+    // Relay price
+    if (config.output === 'R' && data[7]?.price) {
+      extra += data[7].price * parseInt(relayNum);
     }
 
-    extra += (data[5]?.price || 0) * parseInt(config.ai);
-    extra += (data[6]?.price || 0) * parseInt(config.ao);
+    // Analog inputs/outputs
+    if (data[5]?.price) extra += data[5].price * parseInt(config.ai);
+    if (data[6]?.price) extra += data[6].price * parseInt(config.ao);
 
-    if (config.sdCard === 'S') {
-      extra += data[3]?.price || 0;
+    // SD Card
+    if (config.sdCard === 'S' && data[3]?.price) {
+      extra += data[3].price;
     }
 
-    if (config.size === '7035E' && config.lan === 'L') {
-      extra += data[4]?.price || 0;
+    // LAN for 7035E
+    if (config.size === '7035E' && config.lan === 'L' && data[4]?.price) {
+      extra += data[4].price;
     }
 
     return extra;
@@ -334,15 +378,22 @@ const useProductCalculations = (
   const currentDescription = useMemo(() => {
     if (!currentPac) return '';
 
-    const sizeInfo = SIZES[config.size as keyof typeof SIZES];
-    const outputNumber = sizeInfo?.outputs || 5;
+    const sizeInfo = SIZES[config.size];
+    if (!sizeInfo) return '';
+
+    const { outputs } = sizeInfo;
+    const relayCount = parseInt(relayNum);
+    const transistorCount = outputs - relayCount;
+
+    const transistorOutput =
+      transistorCount > 0 ? `و ${transistorCount} عدد خروجی ترانزیستوری` : '';
 
     const parts = [
       'آپشن ها:',
       config.voltage === 'AC' ? 'تغذیه 220 ولت AC' : 'منبع تغذیه 24 ولت DC',
       config.output === 'T'
-        ? `دارای ${outputNumber} عدد خروجی ترانزیستوری`
-        : `دارای ${outputNumber} عدد خروجی رله‌ای`,
+        ? `دارای ${outputs} عدد خروجی ترانزیستوری`
+        : `دارای ${relayNum} عدد خروجی رله‌ای  ${transistorOutput}`,
     ];
 
     if (config.ai !== '0') parts.push(`دارای ${config.ai} عدد ورودی آنالوگ`);
@@ -357,7 +408,7 @@ const useProductCalculations = (
     }
 
     return ` ${currentPac.description} \n    ${parts.join(' - ')}`;
-  }, [currentPac, config]);
+  }, [currentPac, config, relayNum]);
 
   const currentOptions = useMemo(() => {
     const parts = [
@@ -392,42 +443,30 @@ const useProductCalculations = (
 };
 
 const useConfigOptions = (config: ConfigState) => {
-  const analogOptions = useMemo(() => {
-    const sizeInfo = SIZES[config.size as keyof typeof SIZES];
-    const maxTotal = sizeInfo?.maxAnalog || 2;
+  return useMemo(() => {
+    const sizeInfo = SIZES[config.size];
+    if (!sizeInfo) return { aiOptions: [], aoOptions: [] };
+
+    const { maxAnalog } = sizeInfo;
     const aiNum = parseInt(config.ai);
     const aoNum = parseInt(config.ao);
 
     const aiOptions = generateRange(4).map((option) => ({
       ...option,
       disabled:
-        parseInt(option.value) + aoNum > maxTotal ||
+        parseInt(option.value) + aoNum > maxAnalog ||
         (config.size === '7035E' && parseInt(option.value) > 2),
     }));
 
     const aoOptions = generateRange(4).map((option) => ({
       ...option,
       disabled:
-        aiNum + parseInt(option.value) > maxTotal ||
+        aiNum + parseInt(option.value) > maxAnalog ||
         (config.size === '7035E' && parseInt(option.value) > 2),
     }));
 
     return { aiOptions, aoOptions };
   }, [config.size, config.ai, config.ao]);
-
-  const relayOptions = useMemo(() => {
-    const selectedOptions = RELAY_CONFIG.find(
-      (option) => option.size === config.size
-    );
-    return (
-      selectedOptions?.options.map((selected) => ({
-        value: selected,
-        label: selected,
-      })) || []
-    );
-  }, [config.size]);
-
-  return { analogOptions, relayOptions };
 };
 
 // Main Component
@@ -446,7 +485,12 @@ function App() {
     currentOptions,
     currentPartNumber,
   } = useProductCalculations(config, data, relayNum);
-  const { analogOptions, relayOptions } = useConfigOptions(config);
+  const { aiOptions, aoOptions } = useConfigOptions(config);
+
+  const relayOptions = useMemo(
+    () => getRelayOptions(config.size),
+    [config.size]
+  );
 
   const totalPrice = useMemo(
     () => products.reduce((sum, item) => sum + item.price * item.number, 0),
@@ -461,9 +505,7 @@ function App() {
         if (field === 'size') {
           newConfig.ai = '0';
           newConfig.ao = '0';
-          setRelayNum(
-            value === '7035E' ? '5' : value === '7070E2' ? '12' : '20'
-          );
+          setRelayNum(getDefaultRelayNum(value));
           if (value !== '7035E') {
             newConfig.lan = 'L';
           }
@@ -555,12 +597,13 @@ function App() {
     return (
       <Box
         padding='8'
-        bg='#F5F6F6'
         borderRadius='2xl'
         display='flex'
         justifyContent='center'
         alignItems='center'
         minH='100vh'
+        gradientFrom={'cyan.400'}
+        gradientTo={'cyan50'}
       >
         <Heading>در حال بارگذاری...</Heading>
       </Box>
@@ -570,37 +613,73 @@ function App() {
   return (
     <Box
       padding='8'
-      bg='#F5F6F6'
+      bgImage='linear-gradient({colors.gray.900}, {colors.blue.900})'
       borderRadius='2xl'
       display='flex'
       flexDir='column'
       justifyContent='center'
       alignItems='center'
-      gap='3'
+      gap='10'
     >
       <Toaster />
-
+      <Heading
+        size={'6xl'}
+        bgClip={'text'}
+        bgGradient={'to-r'}
+        gradientFrom={'orange.400'}
+        gradientTo={'pink.500'}
+        height={'20'}
+      >
+        پیکربندی محصولات HMI
+      </Heading>
       {/* Part Number Display */}
-      <Flex flexDir='row' gap={4}>
+      <Flex
+        flexDir='column'
+        padding={'8'}
+        borderRadius={'3xl'}
+        gap={4}
+        bgGradient={'to-r'}
+        gradientFrom={'gray.800'}
+        gradientTo={'gray.700'}
+        border='2px solid'
+        borderColor='gray.500'
+      >
         <Heading size='3xl'>پارت نامبر HMI : </Heading>
-        <Flex align='center'>
-          <Heading
-            fontSize='3xl'
-            letterSpacing='widest'
-            cursor='pointer'
-            onClick={() => handleCopy(currentPartNumber)}
-            _hover={{ color: '#fbb130' }}
-            title='برای کپی کلیک کنید'
-          >
-            {currentPartNumber}
-          </Heading>
-        </Flex>
+
+        <Heading
+          bgClip={'text'}
+          bgGradient={'to-r'}
+          gradientFrom={'orange.400'}
+          gradientTo={'pink.500'}
+          fontSize='3xl'
+          letterSpacing='widest'
+          cursor='pointer'
+          onClick={() => handleCopy(currentPartNumber)}
+          _hover={{ color: '#fbb130' }}
+          title='برای کپی کلیک کنید'
+        >
+          {currentPartNumber}
+        </Heading>
       </Flex>
 
       {/* Price Display */}
-      <Box bg='##0f1b24' p={4} borderRadius='2xl' boxShadow='sm'>
+      <Box
+        p={10}
+        borderRadius='2xl'
+        boxShadow='sm'
+        bgGradient={'to-r'}
+        gradientFrom={'green.600'}
+        gradientTo={'green.700'}
+      >
         <Heading
-          _hover={{ color: '#fbb130' }}
+          _hover={{
+            color: '#fbb130',
+            //  bgGradient: 'to-r',
+            // gradientFrom: 'orange.400',
+            // gradientTo: 'pink.500',
+            // bgClip: 'text',
+          }}
+          size={'2xl'}
           cursor='pointer'
           onClick={() => handleCopy(currentPrice.toLocaleString())}
         >
@@ -609,10 +688,36 @@ function App() {
       </Box>
 
       {/* Description Display */}
-      <Box bg='##0f1b24' p={5} borderRadius='2xl' boxShadow='sm'>
-        <Text fontWeight='medium' textAlign='right' whiteSpace='pre-line'>
+      <Box p={5} borderRadius='2xl' boxShadow='sm'>
+        <Text
+          fontWeight='medium'
+          textAlign='right'
+          whiteSpace='pre-line'
+          wordSpacing={'2px'}
+        >
           {currentDescription}
         </Text>
+      </Box>
+      <Box bg={'orange.100'} color={'black'} p={'5'} borderRadius={'3xl'}>
+        <Blockquote.Root colorPalette={'cyan'} variant={'solid'} mb={1}>
+          <Blockquote.Content>
+            توضیحات تکمیلی: خروجی های ترانزیستوری تا ۵۰ ولت Dc و حداکثر ۵۰۰ میلی
+            امپر میباشند. وخروجی های رله تا ۲۵۰ ولت DC/AC و حداکثر ۵ امپر
+            میباشند.
+          </Blockquote.Content>
+        </Blockquote.Root>
+
+        <Blockquote.Root colorPalette={'red'} variant={'solid'}>
+          <Blockquote.Content>
+            <Mark variant={'text'} colorPalette={'red'} color={'red.600'}>
+              توجه:
+            </Mark>{' '}
+            حداکثر جریان خروجی مجاز برای هر بلوک 12 آمپر می‌باشد؛ برای مثال در
+            دستگاه PACs7070E2 تعداد خروجی در هر بلوک برابر با ۶ عدد است از این
+            رو اگر تمام رله ها با هم روشن شوند از هر رله نباید بیش از ۲ آمپر
+            جریان کشید.
+          </Blockquote.Content>
+        </Blockquote.Root>
       </Box>
 
       {/* Configuration Grid */}
@@ -654,14 +759,14 @@ function App() {
         <ConfigSelector
           title='تعداد ورودی آنالوگ'
           value={config.ai}
-          options={analogOptions.aiOptions}
+          options={aiOptions}
           onChange={(value) => handleConfigChange('ai', value)}
         />
 
         <ConfigSelector
           title='تعداد خروجی آنالوگ'
           value={config.ao}
-          options={analogOptions.aoOptions}
+          options={aoOptions}
           onChange={(value) => handleConfigChange('ao', value)}
         />
 
@@ -682,9 +787,11 @@ function App() {
       </Grid>
 
       <Button
-        bg='#de6407'
+        bgGradient={'to-r'}
+        gradientFrom={'orange.500'}
+        gradientTo={'red.500'}
         color='white'
-        _hover={{ bg: '#de7525' }}
+        _hover={{ shadow: '2xl', shadowColor: 'orange.500' }}
         p={8}
         borderRadius='2xl'
         onClick={handleAddProduct}
@@ -696,93 +803,134 @@ function App() {
       <Box
         p={12}
         borderRadius='2xl'
-        boxShadow='lg'
+        border={' 1px solid'}
+        shadow={'lg'}
+        borderColor={'whiteAlpha.400'}
         w='50rem'
         display='flex'
         flexDirection='column'
-        gap='4'
+        gap='10'
         justifyContent='center'
         alignItems='center'
+        bg='rgba(255, 255, 255, 0.100)'
+        backdropBlur={'3xl'}
       >
-        <Heading size='xl'>محصولات انتخاب شده</Heading>
+        <Heading size='3xl'>محصولات انتخاب شده</Heading>
 
         {products.length > 0 ? (
-          <Table.Root background='white' direction='ltr'>
-            <Table.Body>
-              {products.map((product, index) => (
-                <ProductRow
-                  key={product.id}
-                  product={product}
-                  index={index}
-                  onCopy={handleCopy}
-                  onUpdateQuantity={handleUpdateProductQuantity}
-                  onRemove={handleRemoveProduct}
-                />
-              ))}
-            </Table.Body>
-          </Table.Root>
+          <Flex direction={'column'} gap={'5'}>
+            {products.map((product, index) => (
+              <ProductRow
+                key={product.id}
+                product={product}
+                index={index}
+                onCopy={handleCopy}
+                onUpdateQuantity={handleUpdateProductQuantity}
+                onRemove={handleRemoveProduct}
+              />
+            ))}
+          </Flex>
         ) : (
-          <Heading textAlign='center' fontSize='lg'>
-            محصولی اضافه نشده
-          </Heading>
+          <Flex direction={'column'} gap={'10'}>
+            <Heading size={'6xl'}>📦</Heading>
+            <Heading textAlign='center' fontSize='xl'>
+              محصولی اضافه نشده
+            </Heading>
+          </Flex>
         )}
       </Box>
 
       {/* Total Price */}
-      <Box bg='##0f1b24' p={12} borderRadius='2xl' boxShadow='lg' w='40rem'>
-        <Heading size='xl'>قیمت کل</Heading>
-        <Heading
-          _hover={{ color: '#fbb130' }}
-          cursor='pointer'
-          onClick={() => handleCopy(totalPrice.toLocaleString())}
-        >
-          {totalPrice.toLocaleString()} ریال
-        </Heading>
-      </Box>
-
-      {/* Customer Information */}
-      <Box bg='##0f1b24' p={12} borderRadius='2xl' boxShadow='lg' w='40rem'>
-        <Flex justify='center' mb='12' direction='column' alignItems='center'>
-          <Heading mb='5' size='xl'>
-            نام و نام خانوادگی
-          </Heading>
-          <Input
-            size='md'
-            w='20rem'
-            borderRadius='lg'
-            border='#782C0F solid 2px'
-            value={customerName}
-            onChange={(e) => setCustomerName(e.currentTarget.value)}
-          />
-        </Flex>
-
-        <Flex mb='12' justify='center' direction='column' alignItems='center'>
-          <Heading mb='5' size='xl'>
-            نام شرکت/ زمینه کاری
-          </Heading>
-          <Input
-            size='md'
-            w='20rem'
-            borderRadius='lg'
-            border='#782C0F solid 2px'
-            value={customerCompany}
-            onChange={(e) => setCustomerCompany(e.currentTarget.value)}
-          />
-        </Flex>
-
-        <Button
-          onClick={handleSendMessage}
-          bg='#1c8e37'
-          color='white'
-          _hover={{ bg: '#20b943' }}
-          p={8}
+      {products.length > 0 && (
+        <Box
+          p={12}
           borderRadius='2xl'
+          boxShadow='lg'
+          w='40rem'
+          bgGradient={'to-r'}
+          gradientFrom={'purple.600'}
+          gradientTo={'cyan.600'}
         >
-          ارسال در واتس اپ
-        </Button>
-        <Heading mt='5' textStyle='md' size='lg'>
-          قبل از ارسال پیام، در حساب واتس اپ خود لاگین باشید
-        </Heading>
+          <Heading size='3xl' mb={'4'}>
+            قیمت کل
+          </Heading>
+          <Heading
+            _hover={{ color: '#fbb130' }}
+            cursor='pointer'
+            onClick={() => handleCopy(totalPrice.toLocaleString())}
+            size={'4xl'}
+          >
+            {totalPrice.toLocaleString()} ریال
+          </Heading>
+        </Box>
+      )}
+      {/* Customer Information */}
+      <Box
+        p={12}
+        borderRadius='2xl'
+        border={' 1px solid'}
+        shadow={'lg'}
+        borderColor={'whiteAlpha.400'}
+        w='35rem'
+        display='flex'
+        flexDirection='column'
+        gap='12'
+        alignItems='center'
+        bg='rgba(255, 255, 255, 0.100)'
+        backdropBlur={'3xl'}
+      >
+        <Heading size={'2xl'}>اطلاعات مشتری</Heading>
+        <Flex gap={'4'} direction={'column'} alignItems={'center'}>
+          <Flex mb='12' direction='column' alignItems='start'>
+            <Heading mb='5' size='lg' px={3}>
+              نام و نام خانوادگی
+            </Heading>
+            <Input
+              size='md'
+              bg={'whiteAlpha.200'}
+              w='30rem'
+              borderRadius='lg'
+              border='solid 1px'
+              borderColor={'white/30'}
+              value={customerName}
+              onChange={(e) => setCustomerName(e.currentTarget.value)}
+            />
+          </Flex>
+
+          <Flex mb='12' justify='center' direction='column' alignItems='start'>
+            <Heading mb='5' size='lg' px={3}>
+              نام شرکت/ زمینه کاری
+            </Heading>
+            <Input
+              size='md'
+              bg={'whiteAlpha.200'}
+              w='30rem'
+              borderRadius='lg'
+              border='solid 1px'
+              borderColor={'white/30'}
+              value={customerCompany}
+              onChange={(e) => setCustomerCompany(e.currentTarget.value)}
+            />
+          </Flex>
+          <Flex direction={'column'} align={'center'}>
+            <Button
+              onClick={handleSendMessage}
+              bgGradient={'to-r'}
+              gradientFrom={'green.500'}
+              gradientTo={'green.600'}
+              maxW={'13rem'}
+              color='white'
+              py={6}
+              px={8}
+              borderRadius='xl'
+            >
+              ارسال در واتس اپ
+            </Button>
+            <Heading mt='5' textStyle='md' size='lg' color={'whiteAlpha.700'}>
+              قبل از ارسال پیام، در حساب واتس اپ خود لاگین باشید
+            </Heading>
+          </Flex>
+        </Flex>
       </Box>
     </Box>
   );
