@@ -1,7 +1,15 @@
+@font-face {
+  font-family: 'Yekan';
+  src: url('./assets/fonts/IRANYekanX-Medium.woff') format('woff'),
+    url('./assets/fonts/IRANYekanX-Medium.woff2') format('woff2');
+  font-weight: normal;
+}
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: 'Yekan', system-ui, Avenir, Helvetica, Arial, sans-serif;
   background-color: #3b3b50;
   color: #fdfdfd;
+  display: flex;
+  justify-content: center;
 }
 option {
   color: #fdfdfd;

@@ -159,18 +159,22 @@ const ConfigSelector = memo<{
       bgGradient={'to-br'}
       gradientFrom={'blue.500/10'}
       gradientTo={'purple.500/10'}
-      p={5}
+      p={{ base: 3, md: 5 }}
       borderRadius='2xl'
       boxShadow='lg'
     >
-      <Heading textAlign='center' fontSize='lg' mb={6}>
+      <Heading textAlign='center' fontSize={{ base: 'md', md: 'lg' }} mb={4}>
         {title}
       </Heading>
-      <NativeSelect.Root size='sm' w='15rem' disabled={disabled}>
+      <NativeSelect.Root
+        size='sm'
+        w={{ base: '100%', md: '15rem' }}
+        disabled={disabled}
+      >
         <NativeSelect.Field
           borderRadius='lg'
           bgGradient={'to-r'}
-          color={'white'}
+          color={'black'}
           gradientFrom={'orange.400'}
           gradientTo={'orange.500'}
           _hover={{ borderColor: '#2e4150' }}
@@ -199,51 +203,59 @@ const ProductRow = memo<{
   onRemove: (id: number) => void;
 }>(({ product, index, onCopy, onUpdateQuantity, onRemove }) => (
   <Flex
-    padding={'5'}
+    padding={{ base: '3', md: '5' }}
     background='white'
     borderRadius={'3xl'}
     shadow={'2xl'}
     border={'1px solid'}
     borderColor={'gray.200'}
     _hover={{ shadow: 'xl' }}
-    gap={'4'}
+    gap={{ base: '2', md: '4' }}
     color={'black'}
-    direction={'row-reverse'}
+    direction={{ base: 'column', md: 'row-reverse' }}
     alignItems={'center'}
+    w='100%'
   >
     <Popover.Root positioning={{ placement: 'bottom-end' }}>
       <Popover.Trigger asChild>
         <Button
           size='sm'
-          color='cyan.600'
+          color='white'
           variant='solid'
           borderRadius='full'
-          background='cyan.200'
+          bgGradient={'to-r'}
+          gradientFrom={'cyan.400'}
+          gradientTo={'cyan.500'}
         >
           ?
         </Button>
       </Popover.Trigger>
       <Popover.Positioner>
-        <Popover.Content background='white' borderRadius='xl'>
+        <Popover.Content background='white' borderRadius='xl' maxW='90vw'>
           <Popover.Arrow>
             <Popover.ArrowTip background='white!' border='none' />
           </Popover.Arrow>
           <Popover.Body background='white' borderRadius='xl'>
-            <Popover.Title fontSize='xl'>مشخصات محصول</Popover.Title>
-            <Text my='4' textAlign='right'>
+            <Popover.Title fontSize={{ base: 'lg', md: 'xl' }}>
+              مشخصات محصول
+            </Popover.Title>
+            <Text my='4' textAlign='right' fontSize={{ base: 'sm', md: 'md' }}>
               {product.description}
             </Text>
           </Popover.Body>
         </Popover.Content>
       </Popover.Positioner>
     </Popover.Root>
+
     <Heading
       textAlign='center'
-      fontSize='lg'
+      fontSize={{ base: 'sm', md: 'lg' }}
       letterSpacing='widest'
       _hover={{ color: '#fbb130' }}
       cursor='pointer'
       onClick={() => onCopy(product.name)}
+      flex='1'
+      wordBreak='break-all'
     >
       {product.name}
     </Heading>
@@ -261,8 +273,9 @@ const ProductRow = memo<{
           backgroundGradient={'to-r'}
           gradientFrom={'red.500'}
           gradientTo={'red.600'}
-          fontSize={'2xl'}
+          fontSize={{ base: 'lg', md: '2xl' }}
           color={'white'}
+          size={{ base: 'sm', md: 'md' }}
         >
           -
         </Button>
@@ -275,14 +288,16 @@ const ProductRow = memo<{
           backgroundColor='#de6407'
           color='white'
           textAlign={'center'}
+          fontSize={{ base: 'sm', md: 'md' }}
         />
         <Button
           onClick={() => onUpdateQuantity(index, product.number + 1)}
           backgroundGradient={'to-r'}
           gradientFrom={'green.500'}
           gradientTo={'green.600'}
-          fontSize={'lg'}
+          fontSize={{ base: 'md', md: 'lg' }}
           color={'white'}
+          size={{ base: 'sm', md: 'md' }}
         >
           +
         </Button>
@@ -293,6 +308,8 @@ const ProductRow = memo<{
       _hover={{ color: '#fbb130' }}
       cursor='pointer'
       onClick={() => onCopy((product.price * product.number).toLocaleString())}
+      fontSize={{ base: 'md', md: 'lg' }}
+      textAlign='center'
     >
       {(product.price * product.number).toLocaleString()} ریال
     </Heading>
@@ -612,30 +629,35 @@ function App() {
 
   return (
     <Box
-      padding='8'
+      padding={{ base: '4', md: '8' }}
       bgImage='linear-gradient({colors.gray.900}, {colors.blue.900})'
       borderRadius='2xl'
       display='flex'
       flexDir='column'
       justifyContent='center'
       alignItems='center'
-      gap='10'
+      gap={{ base: '6', md: '10' }}
+      minH='100vh'
+      w='100%'
+      overflow='hidden'
     >
       <Toaster />
       <Heading
-        size={'6xl'}
+        size={{ base: '3xl', md: '6xl' }}
         bgClip={'text'}
         bgGradient={'to-r'}
         gradientFrom={'orange.400'}
         gradientTo={'pink.500'}
-        height={'20'}
+        height={{ base: '12', md: '20' }}
+        textAlign='center'
       >
         پیکربندی محصولات HMI
       </Heading>
+
       {/* Part Number Display */}
       <Flex
         flexDir='column'
-        padding={'8'}
+        padding={{ base: '4', md: '8' }}
         borderRadius={'3xl'}
         gap={4}
         bgGradient={'to-r'}
@@ -643,20 +665,26 @@ function App() {
         gradientTo={'gray.700'}
         border='2px solid'
         borderColor='gray.500'
+        w={{ base: '95%', md: 'auto' }}
+        maxW='90vw'
       >
-        <Heading size='3xl'>پارت نامبر HMI : </Heading>
+        <Heading size={{ base: 'xl', md: '3xl' }} textAlign='center'>
+          پارت نامبر HMI :{' '}
+        </Heading>
 
         <Heading
           bgClip={'text'}
           bgGradient={'to-r'}
           gradientFrom={'orange.400'}
           gradientTo={'pink.500'}
-          fontSize='3xl'
+          fontSize={{ base: 'xl', md: '3xl' }}
           letterSpacing='widest'
           cursor='pointer'
           onClick={() => handleCopy(currentPartNumber)}
           _hover={{ color: '#fbb130' }}
           title='برای کپی کلیک کنید'
+          textAlign='center'
+          wordBreak='break-all'
         >
           {currentPartNumber}
         </Heading>
@@ -664,43 +692,56 @@ function App() {
 
       {/* Price Display */}
       <Box
-        p={10}
+        p={{ base: 6, md: 10 }}
         borderRadius='2xl'
         boxShadow='sm'
         bgGradient={'to-r'}
         gradientFrom={'green.600'}
         gradientTo={'green.700'}
+        w={{ base: '95%', md: 'auto' }}
       >
         <Heading
           _hover={{
             color: '#fbb130',
-            //  bgGradient: 'to-r',
-            // gradientFrom: 'orange.400',
-            // gradientTo: 'pink.500',
-            // bgClip: 'text',
           }}
-          size={'2xl'}
+          size={{ base: 'xl', md: '2xl' }}
           cursor='pointer'
           onClick={() => handleCopy(currentPrice.toLocaleString())}
+          textAlign='center'
         >
           {currentPrice.toLocaleString()} ریال
         </Heading>
       </Box>
 
       {/* Description Display */}
-      <Box p={5} borderRadius='2xl' boxShadow='sm'>
+      <Box
+        p={{ base: 3, md: 5 }}
+        borderRadius='2xl'
+        boxShadow='sm'
+        w={{ base: '95%', md: 'auto' }}
+        maxW='90vw'
+      >
         <Text
           fontWeight='medium'
           textAlign='right'
           whiteSpace='pre-line'
           wordSpacing={'2px'}
+          fontSize={{ base: 'sm', md: 'md' }}
         >
           {currentDescription}
         </Text>
       </Box>
-      <Box bg={'orange.100'} color={'black'} p={'5'} borderRadius={'3xl'}>
+
+      <Box
+        bg={'orange.100'}
+        color={'black'}
+        p={{ base: '3', md: '5' }}
+        borderRadius={'3xl'}
+        w={{ base: '95%', md: 'auto' }}
+        maxW='90vw'
+      >
         <Blockquote.Root colorPalette={'cyan'} variant={'solid'} mb={1}>
-          <Blockquote.Content>
+          <Blockquote.Content fontSize={{ base: 'sm', md: 'md' }}>
             توضیحات تکمیلی: خروجی های ترانزیستوری تا ۵۰ ولت Dc و حداکثر ۵۰۰ میلی
             امپر میباشند. وخروجی های رله تا ۲۵۰ ولت DC/AC و حداکثر ۵ امپر
             میباشند.
@@ -708,7 +749,7 @@ function App() {
         </Blockquote.Root>
 
         <Blockquote.Root colorPalette={'red'} variant={'solid'}>
-          <Blockquote.Content>
+          <Blockquote.Content fontSize={{ base: 'sm', md: 'md' }}>
             <Mark variant={'text'} colorPalette={'red'} color={'red.600'}>
               توجه:
             </Mark>{' '}
@@ -721,7 +762,17 @@ function App() {
       </Box>
 
       {/* Configuration Grid */}
-      <Grid templateColumns={{ base: '2fr', md: 'repeat(4, 1fr)' }} gap={3}>
+      <Grid
+        templateColumns={{
+          base: 'repeat(1, 1fr)',
+          sm: 'repeat(2, 1fr)',
+          md: 'repeat(3, 1fr)',
+          lg: 'repeat(4, 1fr)',
+        }}
+        gap={{ base: 2, md: 3 }}
+        w={{ base: '95%', md: 'auto' }}
+        maxW='90vw'
+      >
         <ConfigSelector
           title='اندازه نمایشگر'
           value={config.size}
@@ -792,33 +843,38 @@ function App() {
         gradientTo={'red.500'}
         color='white'
         _hover={{ shadow: '2xl', shadowColor: 'orange.500' }}
-        p={8}
+        p={{ base: 6, md: 8 }}
         borderRadius='2xl'
         onClick={handleAddProduct}
+        w={{ base: '200px', md: 'auto' }}
+        fontSize={{ base: 'md', md: 'lg' }}
       >
         تایید
       </Button>
 
       {/* Products List */}
       <Box
-        p={12}
+        p={{ base: '6', md: '12' }}
         borderRadius='2xl'
         border={' 1px solid'}
         shadow={'lg'}
         borderColor={'whiteAlpha.400'}
-        w='50rem'
+        w={{ base: '95%', md: '50rem' }}
+        maxW='90vw'
         display='flex'
         flexDirection='column'
-        gap='10'
+        gap={{ base: '6', md: '10' }}
         justifyContent='center'
         alignItems='center'
         bg='rgba(255, 255, 255, 0.100)'
         backdropBlur={'3xl'}
       >
-        <Heading size='3xl'>محصولات انتخاب شده</Heading>
+        <Heading size={{ base: 'xl', md: '3xl' }} textAlign='center'>
+          محصولات انتخاب شده
+        </Heading>
 
         {products.length > 0 ? (
-          <Flex direction={'column'} gap={'5'}>
+          <Flex direction={'column'} gap={'5'} w='100%'>
             {products.map((product, index) => (
               <ProductRow
                 key={product.id}
@@ -832,8 +888,8 @@ function App() {
           </Flex>
         ) : (
           <Flex direction={'column'} gap={'10'}>
-            <Heading size={'6xl'}>📦</Heading>
-            <Heading textAlign='center' fontSize='xl'>
+            <Heading size={{ base: '4xl', md: '6xl' }}>📦</Heading>
+            <Heading textAlign='center' fontSize={{ base: 'lg', md: 'xl' }}>
               محصولی اضافه نشده
             </Heading>
           </Flex>
@@ -843,52 +899,64 @@ function App() {
       {/* Total Price */}
       {products.length > 0 && (
         <Box
-          p={12}
+          p={{ base: '8', md: '12' }}
           borderRadius='2xl'
           boxShadow='lg'
-          w='40rem'
+          w={{ base: '95%', md: '40rem' }}
+          maxW='90vw'
           bgGradient={'to-r'}
           gradientFrom={'purple.600'}
           gradientTo={'cyan.600'}
         >
-          <Heading size='3xl' mb={'4'}>
+          <Heading size={{ base: 'xl', md: '3xl' }} mb={'4'} textAlign='center'>
             قیمت کل
           </Heading>
           <Heading
             _hover={{ color: '#fbb130' }}
             cursor='pointer'
             onClick={() => handleCopy(totalPrice.toLocaleString())}
-            size={'4xl'}
+            size={{ base: '2xl', md: '4xl' }}
+            textAlign='center'
+            wordBreak='break-all'
           >
             {totalPrice.toLocaleString()} ریال
           </Heading>
         </Box>
       )}
+
       {/* Customer Information */}
       <Box
-        p={12}
+        p={{ base: '6', md: '12' }}
         borderRadius='2xl'
         border={' 1px solid'}
         shadow={'lg'}
         borderColor={'whiteAlpha.400'}
-        w='35rem'
+        w={{ base: '95%', md: '35rem' }}
+        maxW='90vw'
         display='flex'
         flexDirection='column'
-        gap='12'
+        gap={{ base: '8', md: '12' }}
         alignItems='center'
         bg='rgba(255, 255, 255, 0.100)'
         backdropBlur={'3xl'}
       >
-        <Heading size={'2xl'}>اطلاعات مشتری</Heading>
-        <Flex gap={'4'} direction={'column'} alignItems={'center'}>
-          <Flex mb='12' direction='column' alignItems='start'>
-            <Heading mb='5' size='lg' px={3}>
+        <Heading size={{ base: 'xl', md: '2xl' }} textAlign='center'>
+          اطلاعات مشتری
+        </Heading>
+        <Flex gap={'4'} direction={'column'} alignItems={'center'} w='100%'>
+          <Flex
+            mb={{ base: '6', md: '12' }}
+            direction='column'
+            alignItems='start'
+            w='100%'
+          >
+            <Heading mb='5' size={{ base: 'md', md: 'lg' }} px={3}>
               نام و نام خانوادگی
             </Heading>
             <Input
               size='md'
               bg={'whiteAlpha.200'}
-              w='30rem'
+              w='100%'
               borderRadius='lg'
               border='solid 1px'
               borderColor={'white/30'}
@@ -897,14 +965,20 @@ function App() {
             />
           </Flex>
 
-          <Flex mb='12' justify='center' direction='column' alignItems='start'>
-            <Heading mb='5' size='lg' px={3}>
+          <Flex
+            mb={{ base: '6', md: '12' }}
+            justify='center'
+            direction='column'
+            alignItems='start'
+            w='100%'
+          >
+            <Heading mb='5' size={{ base: 'md', md: 'lg' }} px={3}>
               نام شرکت/ زمینه کاری
             </Heading>
             <Input
               size='md'
               bg={'whiteAlpha.200'}
-              w='30rem'
+              w='100%'
               borderRadius='lg'
               border='solid 1px'
               borderColor={'white/30'}
@@ -912,21 +986,29 @@ function App() {
               onChange={(e) => setCustomerCompany(e.currentTarget.value)}
             />
           </Flex>
-          <Flex direction={'column'} align={'center'}>
+          <Flex direction={'column'} align={'center'} w='100%'>
             <Button
               onClick={handleSendMessage}
               bgGradient={'to-r'}
               gradientFrom={'green.500'}
               gradientTo={'green.600'}
-              maxW={'13rem'}
+              w={{ base: '100%', md: '13rem' }}
               color='white'
-              py={6}
-              px={8}
+              py={{ base: 4, md: 6 }}
+              px={{ base: 6, md: 8 }}
               borderRadius='xl'
+              fontSize={{ base: 'md', md: 'lg' }}
             >
               ارسال در واتس اپ
             </Button>
-            <Heading mt='5' textStyle='md' size='lg' color={'whiteAlpha.700'}>
+            <Heading
+              mt='5'
+              textStyle='md'
+              size={{ base: 'sm', md: 'lg' }}
+              color={'whiteAlpha.700'}
+              textAlign='center'
+              px={2}
+            >
               قبل از ارسال پیام، در حساب واتس اپ خود لاگین باشید
             </Heading>
           </Flex>

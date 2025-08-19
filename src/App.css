@@ -6,9 +6,12 @@
 }
 
 #root {
-  max-width: 1360px;
-  margin: 0 auto;
+  margin: auto;
   text-align: center;
   direction: rtl;
   font-family: 'Yekan';
+}
+body {
+  font-family: 'Yekan';
+  max-width: 280%;
 }
