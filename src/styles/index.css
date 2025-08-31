@@ -1,7 +1,7 @@
 @font-face {
   font-family: 'Yekan';
-  src: url('./assets/fonts/IRANYekanX-Medium.woff') format('woff'),
-    url('./assets/fonts/IRANYekanX-Medium.woff2') format('woff2');
+  src: url('../assets/fonts/IRANYekanX-Medium.woff') format('woff'),
+    url('../assets/fonts/IRANYekanX-Medium.woff2') format('woff2');
   font-weight: normal;
 }
 :root {

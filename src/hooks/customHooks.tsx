@@ -1,0 +1,165 @@
+import { useState, useEffect, useMemo } from 'react';
+import type { FileData, ConfigState } from '../interfaces/IHMI';
+import { SIZES } from '../app/tabContents/HMI';
+import { generateRange, loadExcelData } from '../app/App';
+
+export const useExcelData = () => {
+  const [data, setData] = useState<FileData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadData = async () => {
+      const jsonData = await loadExcelData();
+      if (mounted) {
+        setData(jsonData);
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return { data, isLoading };
+};
+
+export const useProductCalculations = (
+  config: ConfigState,
+  data: FileData[],
+  relayNum: string
+) => {
+  const currentPac = useMemo(
+    () => data.find((item) => item.name === `PACs ${config.size}`) || null,
+    [data, config.size]
+  );
+
+  const priceExtras = useMemo(() => {
+    if (!data.length) return 0;
+
+    let extra = 0;
+
+    // Relay price
+    if (config.output === 'R' && data[7]?.price) {
+      extra += data[7].price * parseInt(relayNum);
+    }
+
+    // Analog inputs/outputs
+    if (data[5]?.price) extra += data[5].price * parseInt(config.ai);
+    if (data[6]?.price) extra += data[6].price * parseInt(config.ao);
+
+    // SD Card
+    if (config.sdCard === 'S' && data[3]?.price) {
+      extra += data[3].price;
+    }
+
+    // LAN for 7035E
+    if (config.size === '7035E' && config.lan === 'L' && data[4]?.price) {
+      extra += data[4].price;
+    }
+
+    return extra;
+  }, [config, data, relayNum]);
+
+  const currentPrice = useMemo(
+    () => (currentPac?.price || 0) + priceExtras,
+    [currentPac?.price, priceExtras]
+  );
+
+  const currentDescription = useMemo(() => {
+    if (!currentPac) return '';
+
+    const sizeInfo = SIZES[config.size];
+    if (!sizeInfo) return '';
+
+    const { outputs } = sizeInfo;
+    const relayCount = parseInt(relayNum);
+    const transistorCount = outputs - relayCount;
+
+    const transistorOutput =
+      transistorCount > 0 ? `و ${transistorCount} عدد خروجی ترانزیستوری` : '';
+
+    const parts = [
+      'آپشن ها:',
+      config.voltage === 'AC' ? 'تغذیه 220 ولت AC' : 'منبع تغذیه 24 ولت DC',
+      config.output === 'T'
+        ? `دارای ${outputs} عدد خروجی ترانزیستوری`
+        : `دارای ${relayNum} عدد خروجی رله‌ای  ${transistorOutput}`,
+    ];
+
+    if (config.ai !== '0') parts.push(`دارای ${config.ai} عدد ورودی آنالوگ`);
+    if (config.ao !== '0') parts.push(`دارای ${config.ao} عدد خروجی آنالوگ`);
+
+    parts.push(
+      config.sdCard === 'S' ? 'دارای کارت حافظه 16 گیگ' : 'فاقد کارت حافظه'
+    );
+
+    if (config.size === '7035E') {
+      parts.push(config.lan === 'L' ? 'دارای پورت اترنت' : 'بدون پورت اترنت');
+    }
+
+    return ` ${currentPac.description} \n    ${parts.join(' - ')}`;
+  }, [currentPac, config, relayNum]);
+
+  const currentOptions = useMemo(() => {
+    const parts = [
+      `Power: ${config.voltage}`,
+      `Output: ${config.output}`,
+      `AI: ${config.ai}`,
+      `AO: ${config.ao}`,
+      `SD: ${config.sdCard}`,
+    ];
+
+    if (config.size === '7035E') {
+      parts.push(`Lan: ${config.lan}`);
+    }
+
+    return parts.join('\n         ');
+  }, [config]);
+
+  const currentPartNumber = useMemo(
+    () =>
+      `PACs${config.size}-${config.voltage}${config.output}${config.ai}${config.ao}${config.sdCard}${config.lan}`,
+    [config]
+  );
+
+  return {
+    currentPac,
+    priceExtras,
+    currentPrice,
+    currentDescription,
+    currentOptions,
+    currentPartNumber,
+  };
+};
+
+export const useConfigOptions = (config: ConfigState) => {
+  return useMemo(() => {
+    const sizeInfo = SIZES[config.size];
+    if (!sizeInfo) return { aiOptions: [], aoOptions: [] };
+
+    const { maxAnalog } = sizeInfo;
+    const aiNum = parseInt(config.ai);
+    const aoNum = parseInt(config.ao);
+
+    const aiOptions = generateRange(4).map((option) => ({
+      ...option,
+      disabled:
+        parseInt(option.value) + aoNum > maxAnalog ||
+        (config.size === '7035E' && parseInt(option.value) > 2),
+    }));
+
+    const aoOptions = generateRange(4).map((option) => ({
+      ...option,
+      disabled:
+        aiNum + parseInt(option.value) > maxAnalog ||
+        (config.size === '7035E' && parseInt(option.value) > 2),
+    }));
+
+    return { aiOptions, aoOptions };
+  }, [config.size, config.ai, config.ao]);
+};

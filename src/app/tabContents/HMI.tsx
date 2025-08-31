@@ -1,64 +1,36 @@
 import {
-  Blockquote,
   Box,
-  Button,
-  CloseButton,
-  Flex,
-  Grid,
   Heading,
-  Input,
+  Flex,
+  Blockquote,
   Mark,
-  NativeSelect,
-  NumberInput,
-  Popover,
+  Grid,
+  Button,
+  Input,
   Text,
 } from '@chakra-ui/react';
-import './App.css';
-import { useCallback, useEffect, useMemo, useState, memo } from 'react';
-import * as XLSX from 'xlsx';
-import { Toaster, toaster } from './components/ui/toaster';
+import { useCallback, useMemo, useState } from 'react';
+import { toaster } from '../../components/ui/toaster';
+import type {
+  ConfigOption,
+  ConfigState,
+  Product,
+  SizeInfo,
+} from '../../interfaces/IHMI';
+import {
+  useConfigOptions,
+  useExcelData,
+  useProductCalculations,
+} from '../../hooks/customHooks';
+import {
+  ConfigSelector,
+  copyToClipboard,
+  getDefaultRelayNum,
+  getRelayOptions,
+  ProductRow,
+} from '../App';
 
-// Types
-interface Product {
-  id: number;
-  name: string;
-  number: number;
-  price: number;
-  description: string;
-  options: string;
-}
-
-interface FileData {
-  name: string;
-  price: number;
-  description: string;
-}
-
-interface ConfigState {
-  size: string;
-  voltage: string;
-  output: string;
-  ai: string;
-  ao: string;
-  sdCard: string;
-  lan: string;
-}
-
-interface SizeInfo {
-  display: string;
-  outputs: number;
-  maxAnalog: number;
-  relay: number[];
-}
-
-interface ConfigOption {
-  value: string;
-  label: string;
-  disabled?: boolean;
-}
-
-// Constants
-const SIZES: Record<string, SizeInfo> = {
+export const SIZES: Record<string, SizeInfo> = {
   '7035E': { display: '3.5 اینچ', outputs: 5, maxAnalog: 2, relay: [5] },
   '7070E2': { display: '7 اینچ', outputs: 12, maxAnalog: 3, relay: [12, 6] },
   '7101E': {
@@ -69,27 +41,27 @@ const SIZES: Record<string, SizeInfo> = {
   },
 } as const;
 
-const VOLTAGE_OPTIONS: ConfigOption[] = [
+export const VOLTAGE_OPTIONS: ConfigOption[] = [
   { value: 'DC', label: '24V DC تغذیه' },
   { value: 'AC', label: '220V AC تغذیه' },
 ];
 
-const OUTPUT_OPTIONS: ConfigOption[] = [
+export const OUTPUT_OPTIONS: ConfigOption[] = [
   { value: 'T', label: 'خروجی ترانزیستوری' },
   { value: 'R', label: 'خروجی رله ای' },
 ];
 
-const SD_CARD_OPTIONS: ConfigOption[] = [
+export const SD_CARD_OPTIONS: ConfigOption[] = [
   { value: 'S', label: 'دارد' },
   { value: 'N', label: 'ندارد' },
 ];
 
-const LAN_OPTIONS: ConfigOption[] = [
+export const LAN_OPTIONS: ConfigOption[] = [
   { value: 'L', label: 'دارد' },
   { value: 'N', label: 'ندارد' },
 ];
 
-const INITIAL_CONFIG: ConfigState = {
+export const INITIAL_CONFIG: ConfigState = {
   size: '7035E',
   voltage: 'AC',
   output: 'T',
@@ -99,395 +71,7 @@ const INITIAL_CONFIG: ConfigState = {
   lan: 'L',
 };
 
-// Utility functions
-const copyToClipboard = (text: string): void => {
-  navigator.clipboard.writeText(text);
-};
-
-const loadExcelData = async (): Promise<FileData[]> => {
-  try {
-    const response = await fetch('/data.xlsx');
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json(worksheet);
-  } catch (error) {
-    console.error('Error loading Excel data:', error);
-    return [];
-  }
-};
-
-const generateRange = (max: number): ConfigOption[] =>
-  Array.from({ length: max + 1 }, (_, i) => ({
-    value: i.toString(),
-    label: i.toString(),
-  }));
-
-const getRelayOptions = (size: string): ConfigOption[] => {
-  const sizeInfo = SIZES[size];
-  return (
-    sizeInfo?.relay.map((value) => ({
-      value: value.toString(),
-      label: value.toString(),
-    })) || []
-  );
-};
-
-const getDefaultRelayNum = (size: string): string => {
-  const sizeInfo = SIZES[size];
-  return sizeInfo?.relay[0]?.toString() || '5';
-};
-
-// Memoized Components
-const ConfigSelector = memo<{
-  title: string;
-  value: string;
-  options: ConfigOption[];
-  onChange: (value: string) => void;
-  disabled?: boolean;
-}>(({ title, value, options, onChange, disabled = false }) => (
-  <Box
-    bgGradient={'to-br'}
-    gradientFrom={'gray.800'}
-    gradientTo={'gray.900'}
-    borderRadius='2xl'
-  >
-    <Box
-      direction='column'
-      gap='8'
-      bgGradient={'to-br'}
-      gradientFrom={'blue.500/10'}
-      gradientTo={'purple.500/10'}
-      p={{ base: 3, md: 5 }}
-      borderRadius='2xl'
-      boxShadow='lg'
-    >
-      <Heading textAlign='center' fontSize={{ base: 'md', md: 'lg' }} mb={4}>
-        {title}
-      </Heading>
-      <NativeSelect.Root
-        size='sm'
-        w={{ base: '100%', md: '15rem' }}
-        disabled={disabled}
-      >
-        <NativeSelect.Field
-          borderRadius='lg'
-          bgGradient={'to-r'}
-          color={'black'}
-          gradientFrom={'orange.400'}
-          gradientTo={'orange.500'}
-          _hover={{ borderColor: '#2e4150' }}
-          _focus={{ borderColor: '#2e4150' }}
-          borderColor='#782C0F'
-          value={value}
-          onChange={(e) => onChange(e.currentTarget.value)}
-        >
-          {options.map(({ value: optValue, label, disabled: optDisabled }) => (
-            <option key={optValue} value={optValue} disabled={optDisabled}>
-              {label}
-            </option>
-          ))}
-        </NativeSelect.Field>
-        <NativeSelect.Indicator />
-      </NativeSelect.Root>
-    </Box>
-  </Box>
-));
-
-const ProductRow = memo<{
-  product: Product;
-  index: number;
-  onCopy: (text: string) => void;
-  onUpdateQuantity: (index: number, quantity: number) => void;
-  onRemove: (id: number) => void;
-}>(({ product, index, onCopy, onUpdateQuantity, onRemove }) => (
-  <Flex
-    padding={{ base: '3', md: '5' }}
-    background='white'
-    borderRadius={'3xl'}
-    shadow={'2xl'}
-    border={'1px solid'}
-    borderColor={'gray.200'}
-    _hover={{ shadow: 'xl' }}
-    gap={{ base: '2', md: '4' }}
-    color={'black'}
-    direction={{ base: 'column', md: 'row-reverse' }}
-    alignItems={'center'}
-    w='100%'
-  >
-    <Popover.Root positioning={{ placement: 'bottom-end' }}>
-      <Popover.Trigger asChild>
-        <Button
-          size='sm'
-          color='white'
-          variant='solid'
-          borderRadius='full'
-          bgGradient={'to-r'}
-          gradientFrom={'cyan.400'}
-          gradientTo={'cyan.500'}
-        >
-          ?
-        </Button>
-      </Popover.Trigger>
-      <Popover.Positioner>
-        <Popover.Content background='white' borderRadius='xl' maxW='90vw'>
-          <Popover.Arrow>
-            <Popover.ArrowTip background='white!' border='none' />
-          </Popover.Arrow>
-          <Popover.Body background='white' borderRadius='xl'>
-            <Popover.Title fontSize={{ base: 'lg', md: 'xl' }}>
-              مشخصات محصول
-            </Popover.Title>
-            <Text my='4' textAlign='right' fontSize={{ base: 'sm', md: 'md' }}>
-              {product.description}
-            </Text>
-          </Popover.Body>
-        </Popover.Content>
-      </Popover.Positioner>
-    </Popover.Root>
-
-    <Heading
-      textAlign='center'
-      fontSize={{ base: 'sm', md: 'lg' }}
-      letterSpacing='widest'
-      _hover={{ color: '#fbb130' }}
-      cursor='pointer'
-      onClick={() => onCopy(product.name)}
-      flex='1'
-      wordBreak='break-all'
-    >
-      {product.name}
-    </Heading>
-
-    <NumberInput.Root
-      defaultValue={product.number.toString()}
-      min={1}
-      max={99}
-      value={product.number.toString()}
-      onValueChange={(e) => onUpdateQuantity(index, parseInt(e.value) || 1)}
-    >
-      <Flex gap={'1'} alignItems={'center'}>
-        <Button
-          onClick={() => onUpdateQuantity(index, product.number - 1)}
-          backgroundGradient={'to-r'}
-          gradientFrom={'red.500'}
-          gradientTo={'red.600'}
-          fontSize={{ base: 'lg', md: '2xl' }}
-          color={'white'}
-          size={{ base: 'sm', md: 'md' }}
-        >
-          -
-        </Button>
-        <NumberInput.Input
-          maxWidth={'30px'}
-          min={1}
-          max={99}
-          border='none'
-          _hover={{ border: 'none' }}
-          backgroundColor='#de6407'
-          color='white'
-          textAlign={'center'}
-          fontSize={{ base: 'sm', md: 'md' }}
-        />
-        <Button
-          onClick={() => onUpdateQuantity(index, product.number + 1)}
-          backgroundGradient={'to-r'}
-          gradientFrom={'green.500'}
-          gradientTo={'green.600'}
-          fontSize={{ base: 'md', md: 'lg' }}
-          color={'white'}
-          size={{ base: 'sm', md: 'md' }}
-        >
-          +
-        </Button>
-      </Flex>
-    </NumberInput.Root>
-
-    <Heading
-      _hover={{ color: '#fbb130' }}
-      cursor='pointer'
-      onClick={() => onCopy((product.price * product.number).toLocaleString())}
-      fontSize={{ base: 'md', md: 'lg' }}
-      textAlign='center'
-    >
-      {(product.price * product.number).toLocaleString()} ریال
-    </Heading>
-    <CloseButton
-      _hover={{ background: '#f9130bf' }}
-      onClick={() => onRemove(product.id)}
-      size='2xs'
-      background='red.300'
-      color={'red.500'}
-      borderRadius='full'
-    />
-  </Flex>
-));
-
-// Custom Hooks
-const useExcelData = () => {
-  const [data, setData] = useState<FileData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadData = async () => {
-      const jsonData = await loadExcelData();
-      if (mounted) {
-        setData(jsonData);
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  return { data, isLoading };
-};
-
-const useProductCalculations = (
-  config: ConfigState,
-  data: FileData[],
-  relayNum: string
-) => {
-  const currentPac = useMemo(
-    () => data.find((item) => item.name === `PACs ${config.size}`) || null,
-    [data, config.size]
-  );
-
-  const priceExtras = useMemo(() => {
-    if (!data.length) return 0;
-
-    let extra = 0;
-
-    // Relay price
-    if (config.output === 'R' && data[7]?.price) {
-      extra += data[7].price * parseInt(relayNum);
-    }
-
-    // Analog inputs/outputs
-    if (data[5]?.price) extra += data[5].price * parseInt(config.ai);
-    if (data[6]?.price) extra += data[6].price * parseInt(config.ao);
-
-    // SD Card
-    if (config.sdCard === 'S' && data[3]?.price) {
-      extra += data[3].price;
-    }
-
-    // LAN for 7035E
-    if (config.size === '7035E' && config.lan === 'L' && data[4]?.price) {
-      extra += data[4].price;
-    }
-
-    return extra;
-  }, [config, data, relayNum]);
-
-  const currentPrice = useMemo(
-    () => (currentPac?.price || 0) + priceExtras,
-    [currentPac?.price, priceExtras]
-  );
-
-  const currentDescription = useMemo(() => {
-    if (!currentPac) return '';
-
-    const sizeInfo = SIZES[config.size];
-    if (!sizeInfo) return '';
-
-    const { outputs } = sizeInfo;
-    const relayCount = parseInt(relayNum);
-    const transistorCount = outputs - relayCount;
-
-    const transistorOutput =
-      transistorCount > 0 ? `و ${transistorCount} عدد خروجی ترانزیستوری` : '';
-
-    const parts = [
-      'آپشن ها:',
-      config.voltage === 'AC' ? 'تغذیه 220 ولت AC' : 'منبع تغذیه 24 ولت DC',
-      config.output === 'T'
-        ? `دارای ${outputs} عدد خروجی ترانزیستوری`
-        : `دارای ${relayNum} عدد خروجی رله‌ای  ${transistorOutput}`,
-    ];
-
-    if (config.ai !== '0') parts.push(`دارای ${config.ai} عدد ورودی آنالوگ`);
-    if (config.ao !== '0') parts.push(`دارای ${config.ao} عدد خروجی آنالوگ`);
-
-    parts.push(
-      config.sdCard === 'S' ? 'دارای کارت حافظه 16 گیگ' : 'فاقد کارت حافظه'
-    );
-
-    if (config.size === '7035E') {
-      parts.push(config.lan === 'L' ? 'دارای پورت اترنت' : 'بدون پورت اترنت');
-    }
-
-    return ` ${currentPac.description} \n    ${parts.join(' - ')}`;
-  }, [currentPac, config, relayNum]);
-
-  const currentOptions = useMemo(() => {
-    const parts = [
-      `Power: ${config.voltage}`,
-      `Output: ${config.output}`,
-      `AI: ${config.ai}`,
-      `AO: ${config.ao}`,
-      `SD: ${config.sdCard}`,
-    ];
-
-    if (config.size === '7035E') {
-      parts.push(`Lan: ${config.lan}`);
-    }
-
-    return parts.join('\n         ');
-  }, [config]);
-
-  const currentPartNumber = useMemo(
-    () =>
-      `PACs${config.size}-${config.voltage}${config.output}${config.ai}${config.ao}${config.sdCard}${config.lan}`,
-    [config]
-  );
-
-  return {
-    currentPac,
-    priceExtras,
-    currentPrice,
-    currentDescription,
-    currentOptions,
-    currentPartNumber,
-  };
-};
-
-const useConfigOptions = (config: ConfigState) => {
-  return useMemo(() => {
-    const sizeInfo = SIZES[config.size];
-    if (!sizeInfo) return { aiOptions: [], aoOptions: [] };
-
-    const { maxAnalog } = sizeInfo;
-    const aiNum = parseInt(config.ai);
-    const aoNum = parseInt(config.ao);
-
-    const aiOptions = generateRange(4).map((option) => ({
-      ...option,
-      disabled:
-        parseInt(option.value) + aoNum > maxAnalog ||
-        (config.size === '7035E' && parseInt(option.value) > 2),
-    }));
-
-    const aoOptions = generateRange(4).map((option) => ({
-      ...option,
-      disabled:
-        aiNum + parseInt(option.value) > maxAnalog ||
-        (config.size === '7035E' && parseInt(option.value) > 2),
-    }));
-
-    return { aiOptions, aoOptions };
-  }, [config.size, config.ai, config.ao]);
-};
-
-// Main Component
-function App() {
+function HMI() {
   const [config, setConfig] = useState<ConfigState>(INITIAL_CONFIG);
   const [products, setProducts] = useState<Product[]>([]);
   const [id, setId] = useState(0);
@@ -640,8 +224,8 @@ function App() {
       minH='100vh'
       w='100%'
       overflow='hidden'
+      direction={'rtl'}
     >
-      <Toaster />
       <Heading
         size={{ base: '3xl', md: '6xl' }}
         bgClip={'text'}
@@ -1017,5 +601,4 @@ function App() {
     </Box>
   );
 }
-
-export default App;
+export default HMI;
