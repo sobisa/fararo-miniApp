@@ -34,6 +34,7 @@ import {
   getRelayOptions,
   handleCopy,
 } from '../features/UtilityFunctions';
+import PriceDisplay from '../sections/PriceDisplay';
 
 // Memoized components
 const ConfigSelector = memo<{
@@ -147,28 +148,6 @@ const PartNumberDisplay = memo<{ partNumber: string }>(({ partNumber }) => (
 ));
 
 PartNumberDisplay.displayName = 'PartNumberDisplay';
-
-const PriceDisplay = memo<{ price: number }>(({ price }) => (
-  <Box
-    p={{ base: 6, md: 10 }}
-    borderRadius='2xl'
-    boxShadow='sm'
-    bgGradient='to-r'
-    gradientFrom='green.600'
-    gradientTo='green.700'
-    w={{ base: '95%', md: 'auto' }}
-  >
-    <Heading
-      _hover={{ color: '#fbb130' }}
-      size={{ base: 'xl', md: '2xl' }}
-      cursor='pointer'
-      onClick={() => handleCopy(price.toLocaleString())}
-      textAlign='center'
-    >
-      {price.toLocaleString()} ریال
-    </Heading>
-  </Box>
-));
 
 PriceDisplay.displayName = 'PriceDisplay';
 
@@ -331,7 +310,6 @@ const HMI = memo<CategoriesProps>(({ selectNewproduct }) => {
       justifyContent='center'
       alignItems='center'
       gap={{ base: '6', md: '10' }}
-      minH='100vh'
       w='100%'
       overflow='hidden'
       direction='rtl'
@@ -349,7 +327,7 @@ const HMI = memo<CategoriesProps>(({ selectNewproduct }) => {
       </Heading>
 
       <PartNumberDisplay partNumber={currentPartNumber} />
-      <PriceDisplay price={currentPrice} />
+      <PriceDisplay price={currentPrice} grFrom='green.600' grTo='green.700' />
       <DescriptionDisplay description={currentDescription} />
       <AdditionalInfo />
 
