@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { FileData, ConfigState } from '../interfaces/IHMI';
-import { SIZES } from '../app/tabContents/HMI';
-import { generateRange, loadExcelData } from '../app/App';
+import { SIZES } from '../app/features/HMIConfigs';
+import { loadExcelData } from '../app/features/ReadExcel';
+import { generateRange } from '../app/features/UtilityFunctions';
 
 export const useExcelData = () => {
   const [data, setData] = useState<FileData[]>([]);
@@ -72,8 +73,8 @@ export const useProductCalculations = (
 
   const currentDescription = useMemo(() => {
     if (!currentPac) return '';
-
     const sizeInfo = SIZES[config.size];
+
     if (!sizeInfo) return '';
 
     const { outputs } = sizeInfo;

@@ -6,16 +6,15 @@ import {
   Mark,
   Grid,
   Button,
-  Input,
   Text,
+  NativeSelect,
 } from '@chakra-ui/react';
-import { useCallback, useMemo, useState } from 'react';
-import { toaster } from '../../components/ui/toaster';
+import { memo, useCallback, useMemo, useState } from 'react';
 import type {
   ConfigOption,
   ConfigState,
+  CategoriesProps,
   Product,
-  SizeInfo,
 } from '../../interfaces/IHMI';
 import {
   useConfigOptions,
@@ -23,60 +22,214 @@ import {
   useProductCalculations,
 } from '../../hooks/customHooks';
 import {
-  ConfigSelector,
-  copyToClipboard,
+  INITIAL_CONFIG,
+  LAN_OPTIONS,
+  OUTPUT_OPTIONS,
+  SD_CARD_OPTIONS,
+  SIZES,
+  VOLTAGE_OPTIONS,
+} from '../features/HMIConfigs';
+import {
   getDefaultRelayNum,
   getRelayOptions,
-  ProductRow,
-} from '../App';
+  handleCopy,
+} from '../features/UtilityFunctions';
 
-export const SIZES: Record<string, SizeInfo> = {
-  '7035E': { display: '3.5 اینچ', outputs: 5, maxAnalog: 2, relay: [5] },
-  '7070E2': { display: '7 اینچ', outputs: 12, maxAnalog: 3, relay: [12, 6] },
-  '7101E': {
-    display: '10 اینچ',
-    outputs: 20,
-    maxAnalog: 4,
-    relay: [20, 15, 10, 5],
-  },
-} as const;
+// Memoized components
+const ConfigSelector = memo<{
+  title: string;
+  value: string;
+  options: ConfigOption[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}>(({ title, value, options, onChange, disabled = false }) => (
+  <Box
+    bgGradient='to-br'
+    gradientFrom='gray.800'
+    gradientTo='gray.900'
+    borderRadius='2xl'
+  >
+    <Box
+      direction='column'
+      gap='8'
+      bgGradient='to-br'
+      gradientFrom='blue.500/10'
+      gradientTo='purple.500/10'
+      p={{ base: 3, md: 5 }}
+      borderRadius='2xl'
+      boxShadow='lg'
+    >
+      <Heading textAlign='center' fontSize={{ base: 'md', md: 'lg' }} mb={4}>
+        {title}
+      </Heading>
+      <NativeSelect.Root
+        size='sm'
+        w={{ base: '100%', md: '15rem' }}
+        disabled={disabled}
+      >
+        <NativeSelect.Field
+          borderRadius='lg'
+          bgGradient='to-r'
+          color='black'
+          gradientFrom='orange.400'
+          gradientTo='orange.500'
+          _hover={{ borderColor: '#2e4150' }}
+          _focus={{ borderColor: '#2e4150' }}
+          borderColor='#782C0F'
+          value={value}
+          onChange={(e) => onChange(e.currentTarget.value)}
+        >
+          {options.map(({ value: optValue, label, disabled: optDisabled }) => (
+            <option key={optValue} value={optValue} disabled={optDisabled}>
+              {label}
+            </option>
+          ))}
+        </NativeSelect.Field>
+        <NativeSelect.Indicator />
+      </NativeSelect.Root>
+    </Box>
+  </Box>
+));
 
-export const VOLTAGE_OPTIONS: ConfigOption[] = [
-  { value: 'DC', label: '24V DC تغذیه' },
-  { value: 'AC', label: '220V AC تغذیه' },
-];
+ConfigSelector.displayName = 'ConfigSelector';
 
-export const OUTPUT_OPTIONS: ConfigOption[] = [
-  { value: 'T', label: 'خروجی ترانزیستوری' },
-  { value: 'R', label: 'خروجی رله ای' },
-];
+const LoadingScreen = memo(() => (
+  <Box
+    padding='8'
+    borderRadius='2xl'
+    display='flex'
+    justifyContent='center'
+    alignItems='center'
+    minH='100vh'
+    gradientFrom='cyan.400'
+    gradientTo='cyan50'
+  >
+    <Heading>در حال بارگذاری...</Heading>
+  </Box>
+));
 
-export const SD_CARD_OPTIONS: ConfigOption[] = [
-  { value: 'S', label: 'دارد' },
-  { value: 'N', label: 'ندارد' },
-];
+LoadingScreen.displayName = 'LoadingScreen';
 
-export const LAN_OPTIONS: ConfigOption[] = [
-  { value: 'L', label: 'دارد' },
-  { value: 'N', label: 'ندارد' },
-];
+const PartNumberDisplay = memo<{ partNumber: string }>(({ partNumber }) => (
+  <Flex
+    flexDir='column'
+    padding={{ base: '4', md: '8' }}
+    borderRadius='3xl'
+    gap={4}
+    bgGradient='to-r'
+    gradientFrom='gray.800'
+    gradientTo='gray.700'
+    border='2px solid'
+    borderColor='gray.500'
+    w={{ base: '95%', md: 'auto' }}
+    maxW='90vw'
+  >
+    <Heading size={{ base: 'xl', md: '3xl' }} textAlign='center'>
+      پارت نامبر HMI :{' '}
+    </Heading>
+    <Heading
+      bgClip='text'
+      bgGradient='to-r'
+      gradientFrom='orange.400'
+      gradientTo='pink.500'
+      fontSize={{ base: 'xl', md: '3xl' }}
+      letterSpacing='widest'
+      cursor='pointer'
+      onClick={() => handleCopy(partNumber)}
+      _hover={{ color: '#fbb130' }}
+      title='برای کپی کلیک کنید'
+      textAlign='center'
+      wordBreak='break-all'
+    >
+      {partNumber}
+    </Heading>
+  </Flex>
+));
 
-export const INITIAL_CONFIG: ConfigState = {
-  size: '7035E',
-  voltage: 'AC',
-  output: 'T',
-  ai: '0',
-  ao: '0',
-  sdCard: 'N',
-  lan: 'L',
-};
+PartNumberDisplay.displayName = 'PartNumberDisplay';
 
-function HMI() {
+const PriceDisplay = memo<{ price: number }>(({ price }) => (
+  <Box
+    p={{ base: 6, md: 10 }}
+    borderRadius='2xl'
+    boxShadow='sm'
+    bgGradient='to-r'
+    gradientFrom='green.600'
+    gradientTo='green.700'
+    w={{ base: '95%', md: 'auto' }}
+  >
+    <Heading
+      _hover={{ color: '#fbb130' }}
+      size={{ base: 'xl', md: '2xl' }}
+      cursor='pointer'
+      onClick={() => handleCopy(price.toLocaleString())}
+      textAlign='center'
+    >
+      {price.toLocaleString()} ریال
+    </Heading>
+  </Box>
+));
+
+PriceDisplay.displayName = 'PriceDisplay';
+
+const DescriptionDisplay = memo<{ description: string }>(({ description }) => (
+  <Box
+    p={{ base: 3, md: 5 }}
+    borderRadius='2xl'
+    boxShadow='sm'
+    w={{ base: '95%', md: 'auto' }}
+    maxW='90vw'
+  >
+    <Text
+      fontWeight='medium'
+      textAlign='right'
+      whiteSpace='pre-line'
+      wordSpacing='2px'
+      fontSize={{ base: 'sm', md: 'md' }}
+    >
+      {description}
+    </Text>
+  </Box>
+));
+
+DescriptionDisplay.displayName = 'DescriptionDisplay';
+
+const AdditionalInfo = memo(() => (
+  <Box
+    bg='orange.100'
+    color='black'
+    p={{ base: '3', md: '5' }}
+    borderRadius='3xl'
+    w={{ base: '95%', md: 'auto' }}
+    maxW='90vw'
+  >
+    <Blockquote.Root colorPalette='cyan' variant='solid' mb={1}>
+      <Blockquote.Content fontSize={{ base: 'sm', md: 'md' }}>
+        توضیحات تکمیلی: خروجی های ترانزیستوری تا ۵۰ ولت Dc و حداکثر ۵۰۰ میلی
+        امپر میباشند. وخروجی های رله تا ۲۵۰ ولت DC/AC و حداکثر ۵ امپر میباشند.
+      </Blockquote.Content>
+    </Blockquote.Root>
+
+    <Blockquote.Root colorPalette='red' variant='solid'>
+      <Blockquote.Content fontSize={{ base: 'sm', md: 'md' }}>
+        <Mark variant='text' colorPalette='red' color='red.600'>
+          توجه:
+        </Mark>{' '}
+        حداکثر جریان خروجی مجاز برای هر بلوک 12 آمپر می‌باشد؛ برای مثال در
+        دستگاه PACs7070E2 تعداد خروجی در هر بلوک برابر با ۶ عدد است از این رو
+        اگر تمام رله ها با هم روشن شوند از هر رله نباید بیش از ۲ آمپر جریان
+        کشید.
+      </Blockquote.Content>
+    </Blockquote.Root>
+  </Box>
+));
+
+AdditionalInfo.displayName = 'AdditionalInfo';
+
+const HMI = memo<CategoriesProps>(({ selectNewproduct }) => {
   const [config, setConfig] = useState<ConfigState>(INITIAL_CONFIG);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [, setProducts] = useState<Product[]>([]);
   const [id, setId] = useState(0);
-  const [customerName, setCustomerName] = useState('');
-  const [customerCompany, setCustomerCompany] = useState('');
   const [relayNum, setRelayNum] = useState('5');
 
   const { data, isLoading } = useExcelData();
@@ -88,16 +241,25 @@ function HMI() {
   } = useProductCalculations(config, data, relayNum);
   const { aiOptions, aoOptions } = useConfigOptions(config);
 
+  // Memoized values
   const relayOptions = useMemo(
     () => getRelayOptions(config.size),
     [config.size]
   );
-
-  const totalPrice = useMemo(
-    () => products.reduce((sum, item) => sum + item.price * item.number, 0),
-    [products]
+  const sizeOptions = useMemo(
+    () =>
+      Object.entries(SIZES).map(([key, { display }]) => ({
+        value: key,
+        label: display,
+      })),
+    []
+  );
+  const currentRelayOptions = useMemo(
+    () => (config.output === 'T' ? [{ value: '0', label: '0' }] : relayOptions),
+    [config.output, relayOptions]
   );
 
+  // Optimized handlers
   const handleConfigChange = useCallback(
     (field: keyof ConfigState, value: string) => {
       setConfig((prev) => {
@@ -118,103 +280,51 @@ function HMI() {
     []
   );
 
-  const handleCopy = useCallback(copyToClipboard, []);
-
   const handleAddProduct = useCallback(() => {
     const name = currentPartNumber;
 
     setProducts((prev) => {
       const existingIndex = prev.findIndex((p) => p.name === name);
 
+      let newProducts;
       if (existingIndex !== -1) {
-        const newProducts = [...prev];
+        newProducts = [...prev];
         newProducts[existingIndex] = {
           ...newProducts[existingIndex],
           number: newProducts[existingIndex].number + 1,
         };
-        return newProducts;
+      } else {
+        const newProduct: Product = {
+          name,
+          id,
+          number: 1,
+          price: currentPrice,
+          description: currentDescription,
+          options: currentOptions,
+        };
+        newProducts = [...prev, newProduct];
+        setId((prevId) => prevId + 1);
       }
 
-      const newProduct: Product = {
-        name,
-        id,
-        number: 1,
-        price: currentPrice,
-        description: currentDescription,
-        options: currentOptions,
-      };
-
-      setId((prevId) => prevId + 1);
-      return [...prev, newProduct];
+      selectNewproduct(newProducts);
+      return newProducts;
     });
-  }, [currentPartNumber, id, currentPrice, currentDescription, currentOptions]);
-
-  const handleRemoveProduct = useCallback((productId: number) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
-  }, []);
-
-  const handleUpdateProductQuantity = useCallback(
-    (index: number, quantity: number) => {
-      if (quantity < 1) return;
-
-      setProducts((prev) => {
-        const newProducts = [...prev];
-        newProducts[index] = { ...newProducts[index], number: quantity };
-        return newProducts;
-      });
-    },
-    []
-  );
-
-  const handleSendMessage = useCallback(() => {
-    const trimmedName = customerName.trim();
-    const trimmedCompany = customerCompany.trim();
-
-    if (!trimmedCompany || !trimmedName) {
-      toaster.create({
-        description: 'لطفا مشخصات مورد نیاز را وارد نمایید',
-        type: 'Error',
-      });
-      return;
-    }
-
-    if (products.length === 0) return;
-
-    const productsText = products
-      .map(
-        (p) =>
-          `${p.name} ${p.options} \n      X ${p.number} \n     --------------------- \n `
-      )
-      .join('');
-
-    const message = `سلام وقت بخیر\n${trimmedName} هستم از شرکت ${trimmedCompany}\n${productsText}`;
-    const encodedMessage = encodeURIComponent(message);
-    const url = `https://wa.me/+989196040485?text=${encodedMessage}`;
-
-    window.open(url, '_blank');
-  }, [customerName, customerCompany, products]);
+  }, [
+    currentPartNumber,
+    id,
+    currentPrice,
+    currentDescription,
+    currentOptions,
+    selectNewproduct,
+  ]);
 
   if (isLoading) {
-    return (
-      <Box
-        padding='8'
-        borderRadius='2xl'
-        display='flex'
-        justifyContent='center'
-        alignItems='center'
-        minH='100vh'
-        gradientFrom={'cyan.400'}
-        gradientTo={'cyan50'}
-      >
-        <Heading>در حال بارگذاری...</Heading>
-      </Box>
-    );
+    return <LoadingScreen />;
   }
 
   return (
     <Box
       padding={{ base: '4', md: '8' }}
-      bgImage='linear-gradient({colors.gray.900}, {colors.blue.900})'
       borderRadius='2xl'
       display='flex'
       flexDir='column'
@@ -224,126 +334,24 @@ function HMI() {
       minH='100vh'
       w='100%'
       overflow='hidden'
-      direction={'rtl'}
+      direction='rtl'
     >
       <Heading
         size={{ base: '3xl', md: '6xl' }}
-        bgClip={'text'}
-        bgGradient={'to-r'}
-        gradientFrom={'orange.400'}
-        gradientTo={'pink.500'}
+        bgClip='text'
+        bgGradient='to-r'
+        gradientFrom='orange.400'
+        gradientTo='pink.500'
         height={{ base: '12', md: '20' }}
         textAlign='center'
       >
         پیکربندی محصولات HMI
       </Heading>
 
-      {/* Part Number Display */}
-      <Flex
-        flexDir='column'
-        padding={{ base: '4', md: '8' }}
-        borderRadius={'3xl'}
-        gap={4}
-        bgGradient={'to-r'}
-        gradientFrom={'gray.800'}
-        gradientTo={'gray.700'}
-        border='2px solid'
-        borderColor='gray.500'
-        w={{ base: '95%', md: 'auto' }}
-        maxW='90vw'
-      >
-        <Heading size={{ base: 'xl', md: '3xl' }} textAlign='center'>
-          پارت نامبر HMI :{' '}
-        </Heading>
-
-        <Heading
-          bgClip={'text'}
-          bgGradient={'to-r'}
-          gradientFrom={'orange.400'}
-          gradientTo={'pink.500'}
-          fontSize={{ base: 'xl', md: '3xl' }}
-          letterSpacing='widest'
-          cursor='pointer'
-          onClick={() => handleCopy(currentPartNumber)}
-          _hover={{ color: '#fbb130' }}
-          title='برای کپی کلیک کنید'
-          textAlign='center'
-          wordBreak='break-all'
-        >
-          {currentPartNumber}
-        </Heading>
-      </Flex>
-
-      {/* Price Display */}
-      <Box
-        p={{ base: 6, md: 10 }}
-        borderRadius='2xl'
-        boxShadow='sm'
-        bgGradient={'to-r'}
-        gradientFrom={'green.600'}
-        gradientTo={'green.700'}
-        w={{ base: '95%', md: 'auto' }}
-      >
-        <Heading
-          _hover={{
-            color: '#fbb130',
-          }}
-          size={{ base: 'xl', md: '2xl' }}
-          cursor='pointer'
-          onClick={() => handleCopy(currentPrice.toLocaleString())}
-          textAlign='center'
-        >
-          {currentPrice.toLocaleString()} ریال
-        </Heading>
-      </Box>
-
-      {/* Description Display */}
-      <Box
-        p={{ base: 3, md: 5 }}
-        borderRadius='2xl'
-        boxShadow='sm'
-        w={{ base: '95%', md: 'auto' }}
-        maxW='90vw'
-      >
-        <Text
-          fontWeight='medium'
-          textAlign='right'
-          whiteSpace='pre-line'
-          wordSpacing={'2px'}
-          fontSize={{ base: 'sm', md: 'md' }}
-        >
-          {currentDescription}
-        </Text>
-      </Box>
-
-      <Box
-        bg={'orange.100'}
-        color={'black'}
-        p={{ base: '3', md: '5' }}
-        borderRadius={'3xl'}
-        w={{ base: '95%', md: 'auto' }}
-        maxW='90vw'
-      >
-        <Blockquote.Root colorPalette={'cyan'} variant={'solid'} mb={1}>
-          <Blockquote.Content fontSize={{ base: 'sm', md: 'md' }}>
-            توضیحات تکمیلی: خروجی های ترانزیستوری تا ۵۰ ولت Dc و حداکثر ۵۰۰ میلی
-            امپر میباشند. وخروجی های رله تا ۲۵۰ ولت DC/AC و حداکثر ۵ امپر
-            میباشند.
-          </Blockquote.Content>
-        </Blockquote.Root>
-
-        <Blockquote.Root colorPalette={'red'} variant={'solid'}>
-          <Blockquote.Content fontSize={{ base: 'sm', md: 'md' }}>
-            <Mark variant={'text'} colorPalette={'red'} color={'red.600'}>
-              توجه:
-            </Mark>{' '}
-            حداکثر جریان خروجی مجاز برای هر بلوک 12 آمپر می‌باشد؛ برای مثال در
-            دستگاه PACs7070E2 تعداد خروجی در هر بلوک برابر با ۶ عدد است از این
-            رو اگر تمام رله ها با هم روشن شوند از هر رله نباید بیش از ۲ آمپر
-            جریان کشید.
-          </Blockquote.Content>
-        </Blockquote.Root>
-      </Box>
+      <PartNumberDisplay partNumber={currentPartNumber} />
+      <PriceDisplay price={currentPrice} />
+      <DescriptionDisplay description={currentDescription} />
+      <AdditionalInfo />
 
       {/* Configuration Grid */}
       <Grid
@@ -360,10 +368,7 @@ function HMI() {
         <ConfigSelector
           title='اندازه نمایشگر'
           value={config.size}
-          options={Object.entries(SIZES).map(([key, { display }]) => ({
-            value: key,
-            label: display,
-          }))}
+          options={sizeOptions}
           onChange={(value) => handleConfigChange('size', value)}
         />
 
@@ -384,9 +389,7 @@ function HMI() {
         <ConfigSelector
           title='تعداد خروجی رله'
           value={config.output === 'T' ? '0' : relayNum}
-          options={
-            config.output === 'T' ? [{ value: '0', label: '0' }] : relayOptions
-          }
+          options={currentRelayOptions}
           onChange={setRelayNum}
           disabled={config.output === 'T'}
         />
@@ -422,9 +425,9 @@ function HMI() {
       </Grid>
 
       <Button
-        bgGradient={'to-r'}
-        gradientFrom={'orange.500'}
-        gradientTo={'red.500'}
+        bgGradient='to-r'
+        gradientFrom='orange.500'
+        gradientTo='red.500'
         color='white'
         _hover={{ shadow: '2xl', shadowColor: 'orange.500' }}
         p={{ base: 6, md: 8 }}
@@ -435,170 +438,10 @@ function HMI() {
       >
         تایید
       </Button>
-
-      {/* Products List */}
-      <Box
-        p={{ base: '6', md: '12' }}
-        borderRadius='2xl'
-        border={' 1px solid'}
-        shadow={'lg'}
-        borderColor={'whiteAlpha.400'}
-        w={{ base: '95%', md: '50rem' }}
-        maxW='90vw'
-        display='flex'
-        flexDirection='column'
-        gap={{ base: '6', md: '10' }}
-        justifyContent='center'
-        alignItems='center'
-        bg='rgba(255, 255, 255, 0.100)'
-        backdropBlur={'3xl'}
-      >
-        <Heading size={{ base: 'xl', md: '3xl' }} textAlign='center'>
-          محصولات انتخاب شده
-        </Heading>
-
-        {products.length > 0 ? (
-          <Flex direction={'column'} gap={'5'} w='100%'>
-            {products.map((product, index) => (
-              <ProductRow
-                key={product.id}
-                product={product}
-                index={index}
-                onCopy={handleCopy}
-                onUpdateQuantity={handleUpdateProductQuantity}
-                onRemove={handleRemoveProduct}
-              />
-            ))}
-          </Flex>
-        ) : (
-          <Flex direction={'column'} gap={'10'}>
-            <Heading size={{ base: '4xl', md: '6xl' }}>📦</Heading>
-            <Heading textAlign='center' fontSize={{ base: 'lg', md: 'xl' }}>
-              محصولی اضافه نشده
-            </Heading>
-          </Flex>
-        )}
-      </Box>
-
-      {/* Total Price */}
-      {products.length > 0 && (
-        <Box
-          p={{ base: '8', md: '12' }}
-          borderRadius='2xl'
-          boxShadow='lg'
-          w={{ base: '95%', md: '40rem' }}
-          maxW='90vw'
-          bgGradient={'to-r'}
-          gradientFrom={'purple.600'}
-          gradientTo={'cyan.600'}
-        >
-          <Heading size={{ base: 'xl', md: '3xl' }} mb={'4'} textAlign='center'>
-            قیمت کل
-          </Heading>
-          <Heading
-            _hover={{ color: '#fbb130' }}
-            cursor='pointer'
-            onClick={() => handleCopy(totalPrice.toLocaleString())}
-            size={{ base: '2xl', md: '4xl' }}
-            textAlign='center'
-            wordBreak='break-all'
-          >
-            {totalPrice.toLocaleString()} ریال
-          </Heading>
-        </Box>
-      )}
-
-      {/* Customer Information */}
-      <Box
-        p={{ base: '6', md: '12' }}
-        borderRadius='2xl'
-        border={' 1px solid'}
-        shadow={'lg'}
-        borderColor={'whiteAlpha.400'}
-        w={{ base: '95%', md: '35rem' }}
-        maxW='90vw'
-        display='flex'
-        flexDirection='column'
-        gap={{ base: '8', md: '12' }}
-        alignItems='center'
-        bg='rgba(255, 255, 255, 0.100)'
-        backdropBlur={'3xl'}
-      >
-        <Heading size={{ base: 'xl', md: '2xl' }} textAlign='center'>
-          اطلاعات مشتری
-        </Heading>
-        <Flex gap={'4'} direction={'column'} alignItems={'center'} w='100%'>
-          <Flex
-            mb={{ base: '6', md: '12' }}
-            direction='column'
-            alignItems='start'
-            w='100%'
-          >
-            <Heading mb='5' size={{ base: 'md', md: 'lg' }} px={3}>
-              نام و نام خانوادگی
-            </Heading>
-            <Input
-              size='md'
-              bg={'whiteAlpha.200'}
-              w='100%'
-              borderRadius='lg'
-              border='solid 1px'
-              borderColor={'white/30'}
-              value={customerName}
-              onChange={(e) => setCustomerName(e.currentTarget.value)}
-            />
-          </Flex>
-
-          <Flex
-            mb={{ base: '6', md: '12' }}
-            justify='center'
-            direction='column'
-            alignItems='start'
-            w='100%'
-          >
-            <Heading mb='5' size={{ base: 'md', md: 'lg' }} px={3}>
-              نام شرکت/ زمینه کاری
-            </Heading>
-            <Input
-              size='md'
-              bg={'whiteAlpha.200'}
-              w='100%'
-              borderRadius='lg'
-              border='solid 1px'
-              borderColor={'white/30'}
-              value={customerCompany}
-              onChange={(e) => setCustomerCompany(e.currentTarget.value)}
-            />
-          </Flex>
-          <Flex direction={'column'} align={'center'} w='100%'>
-            <Button
-              onClick={handleSendMessage}
-              bgGradient={'to-r'}
-              gradientFrom={'green.500'}
-              gradientTo={'green.600'}
-              w={{ base: '100%', md: '13rem' }}
-              color='white'
-              py={{ base: 4, md: 6 }}
-              px={{ base: 6, md: 8 }}
-              borderRadius='xl'
-              fontSize={{ base: 'md', md: 'lg' }}
-            >
-              ارسال در واتس اپ
-            </Button>
-            <Heading
-              mt='5'
-              textStyle='md'
-              size={{ base: 'sm', md: 'lg' }}
-              color={'whiteAlpha.700'}
-              textAlign='center'
-              px={2}
-            >
-              قبل از ارسال پیام، در حساب واتس اپ خود لاگین باشید
-            </Heading>
-          </Flex>
-        </Flex>
-      </Box>
     </Box>
   );
-}
+});
+
+HMI.displayName = 'HMI';
+
 export default HMI;

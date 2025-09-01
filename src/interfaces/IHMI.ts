@@ -35,3 +35,6 @@ export interface ConfigOption {
   label: string;
   disabled?: boolean;
 }
+export interface CategoriesProps {
+  selectNewproduct: (newSelected: Product[]) => void;
+}
