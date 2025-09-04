@@ -36,5 +36,5 @@ export interface ConfigOption {
   disabled?: boolean;
 }
 export interface CategoriesProps {
-  selectNewproduct: (newSelected: Product) => void;
+  selectNewproduct: (newSelected: Product,relayNum:string) => void;
 }

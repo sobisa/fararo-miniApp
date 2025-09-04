@@ -218,7 +218,6 @@ const App = memo(() => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');
-  const [, setId] = useState(0);
   // Memoized calculations
   const totalPrice = useMemo(
     () => products.reduce((sum, item) => sum + item.price * item.number, 0),
@@ -262,12 +261,22 @@ const App = memo(() => {
     window.open(url, '_blank');
   }, [customerName, customerCompany, products, hasProducts]);
 
-  const handleSelectProduct = (selectedNewProduct: Product) => {
+  const handleSelectProduct = (
+    selectedNewProduct: Product,
+    selectedRelayNum: string
+  ) => {
     const name = selectedNewProduct.name;
     setProducts((prev) => {
       const existingIndex = prev.findIndex((p) => p.name === name);
       let newProduct;
+      let relayNum = '-1';
       if (existingIndex !== -1) {
+        relayNum = products[existingIndex].options
+          .split('        ')[5]
+          .split(' ')[2];
+      }
+
+      if (existingIndex !== -1 && relayNum === selectedRelayNum) {
         newProduct = [...prev];
         newProduct[existingIndex] = {
           ...newProduct[existingIndex],
@@ -279,7 +288,6 @@ const App = memo(() => {
 
       return newProduct;
     });
-    console.log(products);
   };
 
   const handleUpdateProductQuantity = useCallback(

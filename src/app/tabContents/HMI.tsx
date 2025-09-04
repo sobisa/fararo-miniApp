@@ -214,8 +214,7 @@ const HMI = memo<CategoriesProps>(({ selectNewproduct }) => {
       options: currentOptions,
     };
     setId((prevId) => prevId + 1);
-
-    selectNewproduct(newProduct);
+    selectNewproduct(newProduct, relayNum);
   }, [
     currentPartNumber,
     id,

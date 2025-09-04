@@ -107,6 +107,7 @@ export const useHMICalculations = (
   }, [currentPac, config, relayNum]);
 
   const currentOptions = useMemo(() => {
+    console.log(relayNum);
     const parts = [
       `Power: ${config.voltage}`,
       `Output: ${config.output}`,
@@ -121,7 +122,7 @@ export const useHMICalculations = (
     }
 
     return parts.join('\n         ');
-  }, [config]);
+  }, [config, relayNum]);
 
   const currentPartNumber = useMemo(
     () =>
