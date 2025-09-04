@@ -6,7 +6,7 @@ import HMI from './tabContents/HMI';
 import { toaster } from '../components/ui/toaster';
 import { handleCopy } from './features/UtilityFunctions';
 import { ProductRow } from './sections/ProductRow';
-import PLC from './tabContents/PLC';
+import PLC from './tabContents/PLC/PLC';
 
 // Constants
 const WHATSAPP_NUMBER = '+989196040485';
@@ -213,13 +213,12 @@ const CustomerForm = memo<{
 );
 
 CustomerForm.displayName = 'CustomerForm';
-
 // Main App component
 const App = memo(() => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerCompany, setCustomerCompany] = useState('');
-
+  const [, setId] = useState(0);
   // Memoized calculations
   const totalPrice = useMemo(
     () => products.reduce((sum, item) => sum + item.price * item.number, 0),
@@ -263,9 +262,25 @@ const App = memo(() => {
     window.open(url, '_blank');
   }, [customerName, customerCompany, products, hasProducts]);
 
-  const handleSelectProduct = useCallback((newSelected: Product[]) => {
-    setProducts([...newSelected]);
-  }, []);
+  const handleSelectProduct = (selectedNewProduct: Product) => {
+    const name = selectedNewProduct.name;
+    setProducts((prev) => {
+      const existingIndex = prev.findIndex((p) => p.name === name);
+      let newProduct;
+      if (existingIndex !== -1) {
+        newProduct = [...prev];
+        newProduct[existingIndex] = {
+          ...newProduct[existingIndex],
+          number: newProduct[existingIndex].number + 1,
+        };
+      } else {
+        newProduct = [...prev, selectedNewProduct];
+      }
+
+      return newProduct;
+    });
+    console.log(products);
+  };
 
   const handleUpdateProductQuantity = useCallback(
     (index: number, quantity: number) => {
@@ -301,8 +316,8 @@ const App = memo(() => {
     >
       <Tabs.Root variant='enclosed' defaultValue='HMI'>
         <Tabs.List>
-          <Tabs.Trigger value='HMI'>HMI</Tabs.Trigger>
-          <Tabs.Trigger value='PLC'>HMI-PLC</Tabs.Trigger>
+          <Tabs.Trigger value='HMI'>HMI-PLC</Tabs.Trigger>
+          <Tabs.Trigger value='PLC'>PLC</Tabs.Trigger>
           <Tabs.Trigger value='sensor'>Sensor</Tabs.Trigger>
           <Tabs.Trigger value='supplies'>Supplies</Tabs.Trigger>
         </Tabs.List>

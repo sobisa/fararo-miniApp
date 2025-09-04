@@ -7,19 +7,17 @@ import {
   Grid,
   Button,
   Text,
-  NativeSelect,
 } from '@chakra-ui/react';
 import { memo, useCallback, useMemo, useState } from 'react';
 import type {
-  ConfigOption,
-  ConfigState,
+  HMIConfigState,
   CategoriesProps,
   Product,
 } from '../../interfaces/IHMI';
 import {
   useConfigOptions,
   useExcelData,
-  useProductCalculations,
+  useHMICalculations,
 } from '../../hooks/customHooks';
 import {
   INITIAL_CONFIG,
@@ -35,62 +33,9 @@ import {
   handleCopy,
 } from '../features/UtilityFunctions';
 import PriceDisplay from '../sections/PriceDisplay';
+import ConfigSelector from '../sections/ConfigSelector';
 
 // Memoized components
-const ConfigSelector = memo<{
-  title: string;
-  value: string;
-  options: ConfigOption[];
-  onChange: (value: string) => void;
-  disabled?: boolean;
-}>(({ title, value, options, onChange, disabled = false }) => (
-  <Box
-    bgGradient='to-br'
-    gradientFrom='gray.800'
-    gradientTo='gray.900'
-    borderRadius='2xl'
-  >
-    <Box
-      direction='column'
-      gap='8'
-      bgGradient='to-br'
-      gradientFrom='blue.500/10'
-      gradientTo='purple.500/10'
-      p={{ base: 3, md: 5 }}
-      borderRadius='2xl'
-      boxShadow='lg'
-    >
-      <Heading textAlign='center' fontSize={{ base: 'md', md: 'lg' }} mb={4}>
-        {title}
-      </Heading>
-      <NativeSelect.Root
-        size='sm'
-        w={{ base: '100%', md: '15rem' }}
-        disabled={disabled}
-      >
-        <NativeSelect.Field
-          borderRadius='lg'
-          bgGradient='to-r'
-          color='black'
-          gradientFrom='orange.400'
-          gradientTo='orange.500'
-          _hover={{ borderColor: '#2e4150' }}
-          _focus={{ borderColor: '#2e4150' }}
-          borderColor='#782C0F'
-          value={value}
-          onChange={(e) => onChange(e.currentTarget.value)}
-        >
-          {options.map(({ value: optValue, label, disabled: optDisabled }) => (
-            <option key={optValue} value={optValue} disabled={optDisabled}>
-              {label}
-            </option>
-          ))}
-        </NativeSelect.Field>
-        <NativeSelect.Indicator />
-      </NativeSelect.Root>
-    </Box>
-  </Box>
-));
 
 ConfigSelector.displayName = 'ConfigSelector';
 
@@ -123,10 +68,9 @@ const PartNumberDisplay = memo<{ partNumber: string }>(({ partNumber }) => (
     border='2px solid'
     borderColor='gray.500'
     w={{ base: '95%', md: 'auto' }}
-    maxW='90vw'
   >
     <Heading size={{ base: 'xl', md: '3xl' }} textAlign='center'>
-      پارت نامبر HMI :{' '}
+      پارت نامبر HMI :
     </Heading>
     <Heading
       bgClip='text'
@@ -206,8 +150,7 @@ const AdditionalInfo = memo(() => (
 AdditionalInfo.displayName = 'AdditionalInfo';
 
 const HMI = memo<CategoriesProps>(({ selectNewproduct }) => {
-  const [config, setConfig] = useState<ConfigState>(INITIAL_CONFIG);
-  const [, setProducts] = useState<Product[]>([]);
+  const [config, setConfig] = useState<HMIConfigState>(INITIAL_CONFIG);
   const [id, setId] = useState(0);
   const [relayNum, setRelayNum] = useState('5');
 
@@ -217,7 +160,7 @@ const HMI = memo<CategoriesProps>(({ selectNewproduct }) => {
     currentDescription,
     currentOptions,
     currentPartNumber,
-  } = useProductCalculations(config, data, relayNum);
+  } = useHMICalculations(config, data, relayNum);
   const { aiOptions, aoOptions } = useConfigOptions(config);
 
   // Memoized values
@@ -240,7 +183,7 @@ const HMI = memo<CategoriesProps>(({ selectNewproduct }) => {
 
   // Optimized handlers
   const handleConfigChange = useCallback(
-    (field: keyof ConfigState, value: string) => {
+    (field: keyof HMIConfigState, value: string) => {
       setConfig((prev) => {
         const newConfig = { ...prev, [field]: value };
 
@@ -262,32 +205,17 @@ const HMI = memo<CategoriesProps>(({ selectNewproduct }) => {
   const handleAddProduct = useCallback(() => {
     const name = currentPartNumber;
 
-    setProducts((prev) => {
-      const existingIndex = prev.findIndex((p) => p.name === name);
+    const newProduct: Product = {
+      name,
+      id,
+      number: 1,
+      price: currentPrice,
+      description: currentDescription,
+      options: currentOptions,
+    };
+    setId((prevId) => prevId + 1);
 
-      let newProducts;
-      if (existingIndex !== -1) {
-        newProducts = [...prev];
-        newProducts[existingIndex] = {
-          ...newProducts[existingIndex],
-          number: newProducts[existingIndex].number + 1,
-        };
-      } else {
-        const newProduct: Product = {
-          name,
-          id,
-          number: 1,
-          price: currentPrice,
-          description: currentDescription,
-          options: currentOptions,
-        };
-        newProducts = [...prev, newProduct];
-        setId((prevId) => prevId + 1);
-      }
-
-      selectNewproduct(newProducts);
-      return newProducts;
-    });
+    selectNewproduct(newProduct);
   }, [
     currentPartNumber,
     id,
@@ -325,9 +253,15 @@ const HMI = memo<CategoriesProps>(({ selectNewproduct }) => {
       >
         پیکربندی محصولات HMI
       </Heading>
+      <Flex gap={'5'} align={'center'}>
+        <PartNumberDisplay partNumber={currentPartNumber} />
+        <PriceDisplay
+          price={currentPrice}
+          grFrom='green.600'
+          grTo='green.700'
+        />
+      </Flex>
 
-      <PartNumberDisplay partNumber={currentPartNumber} />
-      <PriceDisplay price={currentPrice} grFrom='green.600' grTo='green.700' />
       <DescriptionDisplay description={currentDescription} />
       <AdditionalInfo />
 

@@ -13,7 +13,7 @@ export interface FileData {
   description: string;
 }
 
-export interface ConfigState {
+export interface HMIConfigState {
   size: string;
   voltage: string;
   output: string;
@@ -36,5 +36,5 @@ export interface ConfigOption {
   disabled?: boolean;
 }
 export interface CategoriesProps {
-  selectNewproduct: (newSelected: Product[]) => void;
+  selectNewproduct: (newSelected: Product) => void;
 }

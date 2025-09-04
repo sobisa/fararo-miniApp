@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { FileData, ConfigState } from '../interfaces/IHMI';
+import type { FileData, HMIConfigState } from '../interfaces/IHMI';
 import { SIZES } from '../app/features/HMIConfigs';
 import { loadExcelData } from '../app/features/ReadExcel';
 import { generateRange } from '../app/features/UtilityFunctions';
+import { MODEL_OPTIONS_5, type PLCConfigState } from '../interfaces/IPLC';
 
 export const useExcelData = () => {
   const [data, setData] = useState<FileData[]>([]);
@@ -29,8 +30,8 @@ export const useExcelData = () => {
   return { data, isLoading };
 };
 
-export const useProductCalculations = (
-  config: ConfigState,
+export const useHMICalculations = (
+  config: HMIConfigState,
   data: FileData[],
   relayNum: string
 ) => {
@@ -38,7 +39,6 @@ export const useProductCalculations = (
     () => data.find((item) => item.name === `PACs ${config.size}`) || null,
     [data, config.size]
   );
-
   const priceExtras = useMemo(() => {
     if (!data.length) return 0;
 
@@ -113,6 +113,7 @@ export const useProductCalculations = (
       `AI: ${config.ai}`,
       `AO: ${config.ao}`,
       `SD: ${config.sdCard}`,
+      `R: ${relayNum}`,
     ];
 
     if (config.size === '7035E') {
@@ -137,8 +138,22 @@ export const useProductCalculations = (
     currentPartNumber,
   };
 };
+export const usePLCCalculations = (
+  config: PLCConfigState,
+  data: FileData[]
+) => {
+  const currentPLC = useMemo(() => {
+    return data.find((item) => item.name === config.model) || null;
+  }, [data, config]);
+  const currentPrice = useMemo(() => currentPLC?.price || 0, [currentPLC]);
+  const currentPartNumber = useMemo(() => {
+    const model = MODEL_OPTIONS_5.find((plc) => plc.value == currentPLC?.name);
+    return model?.label;
+  }, [currentPLC]);
+  return { currentPLC, currentPrice, currentPartNumber };
+};
 
-export const useConfigOptions = (config: ConfigState) => {
+export const useConfigOptions = (config: HMIConfigState) => {
   return useMemo(() => {
     const sizeInfo = SIZES[config.size];
     if (!sizeInfo) return { aiOptions: [], aoOptions: [] };

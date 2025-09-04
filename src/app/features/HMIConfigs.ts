@@ -1,4 +1,4 @@
-import type { SizeInfo, ConfigOption, ConfigState } from "../../interfaces/IHMI";
+import type { SizeInfo, ConfigOption, HMIConfigState } from "../../interfaces/IHMI";
 
 export const SIZES: Record<string, SizeInfo> = {
   '7035E': { display: '3.5 اینچ', outputs: 5, maxAnalog: 2, relay: [5] },
@@ -31,7 +31,7 @@ export const LAN_OPTIONS: ConfigOption[] = [
   { value: 'N', label: 'ندارد' },
 ];
 
-export const INITIAL_CONFIG: ConfigState = {
+export const INITIAL_CONFIG: HMIConfigState = {
   size: '7035E',
   voltage: 'AC',
   output: 'T',
